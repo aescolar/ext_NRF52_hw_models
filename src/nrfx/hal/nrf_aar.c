@@ -25,6 +25,11 @@ NRF_STATIC_INLINE void nrf_aar_event_clear(NRF_AAR_Type *  p_reg,
     volatile uint32_t dummy = *((volatile uint32_t *)((uint8_t *)p_reg + (uint32_t)aar_event));
     (void)dummy;
 #endif
+
+void nrf_aar_int_enable(NRF_AAR_Type * p_reg, uint32_t mask)
+{
+  p_reg->INTENSET = mask;
+  nrf_aar_regw_sideeffects_INTENSET();
 }
 
 void nrf_aar_int_disable(NRF_AAR_Type * p_reg, uint32_t mask)
