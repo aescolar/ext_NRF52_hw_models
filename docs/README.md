@@ -1,11 +1,12 @@
 **Models of some of the HW present in a NRF52xxx.**<br>
 Where relevant differences exist, these models try to align with a NRF52382.
 
-This repo contains both models of the NRF52 HW as well as a replacement nRFx
-HAL.<br>
-This replacement HAL is a modified version of the real nRFx to be used with
-these models.
-With it, the Zephyr SW should work without needing further changes.
+This repo models the nRF peripheral by implementing of the nrfx HAL functions.
+Therefore, any code using this these HAL functions should work without needing
+futher changes. This includes Zephyr SW.
+The user of the HW models must provide the path to a nrfx checkout
+of version 2.3.0 or later. This is done by setting the environment
+variable NRFX_BASE.
 See the [nrfx/hal/README.md](../src/nrfx/hal/README.md) for more details.
 
 This models can be used directly with
