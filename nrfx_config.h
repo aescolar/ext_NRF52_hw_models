@@ -16,8 +16,12 @@
 #endif
 
 /* Ensure that all HAL functions are mocked. */
-#define NRF_DECLARE_ONLY
+#ifndef NRF_STATIC_INLINE
 #define NRF_STATIC_INLINE
+#endif
+#ifndef NRF_DONT_DECLARE_ONLY
+#define NRF_DECLARE_ONLY
+#endif
 
 #endif // NRFX_CONFIG_H__
 
