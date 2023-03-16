@@ -11,6 +11,11 @@
 #ifndef CORE_CM4__
 #define CORE_CM4__
 
+#include <stdint.h>
+#if defined(CONFIG_BOARD_NRF52_BSIM)
+#include "cmsis.h" /* horrible hack, we need to include the cmsis headers in only one place not in both. This does not build w the models stand alone */
+#endif
+
 #define __I
 #define __IO
 #define __O
@@ -21,6 +26,9 @@
  */
 extern void __WFE(void);
 extern void __SEV(void);
+
+/* TODO: these 2 should just come from the cmsis.h (in board now, to be moved to HW models) */
+
 extern void NVIC_SetPendingIRQ(IRQn_Type IRQn);
 extern void NVIC_ClearPendingIRQ(IRQn_Type IRQn);
 
@@ -45,5 +53,6 @@ extern void NVIC_ClearPendingIRQ(IRQn_Type IRQn);
 #ifndef __NOP
 #define __NOP()
 #endif
+
 
 #endif 
