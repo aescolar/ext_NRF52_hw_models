@@ -56,6 +56,10 @@
 #include "hal/nrf_cracen.h"
 #endif
 
+#ifdef CRACEN_RNG_PRESENT
+#include "hal/nrf_cracen_rng.h"
+#endif
+
 #ifdef NRF_DCNF_NS
 #include "hal/nrf_dcnf.h"
 #endif
