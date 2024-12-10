@@ -57,6 +57,7 @@
 #endif
 
 #ifdef CRACEN_RNG_PRESENT
+//#if defined(NRFX_RELEASE_VER_AT_LEAST) && NRFX_RELEASE_VER_AT_LEAST(3,9,0)
 #include "hal/nrf_cracen_rng.h"
 #endif
 
