@@ -116,7 +116,8 @@
  *         and roughly at the end of TERM1. The models generates it at that point and only in that case.
  *         (It's timing is probably a bit off compared to real HW)
  *
- *
+ * Note26: There is very simplistic support for 4Mbps proprietary modes, assuming that the preamble is 1byte and
+ *         the CRC is the BLE one.
  *
  * Implementation Specification:
  *   A diagram of the main state machine can be found in docs/RADIO_states.svg
@@ -958,6 +959,14 @@ static void start_Tx(void) {
     address_len = 1;
     header_len  = 1;
     bits_per_us = 0.25;
+#if defined(RADIO_MODE_MODE_Nrf_4Mbit_0BT6)
+  } else if ((NRF_RADIO_regs.MODE == RADIO_MODE_MODE_Nrf_4Mbit_0BT6)
+             || (NRF_RADIO_regs.MODE == RADIO_MODE_MODE_Nrf_4Mbit_0BT4)) {
+    preamble_len = 2; //2 bytes always
+    address_len = 4;
+    header_len  = 2;
+    bits_per_us = 4;
+#endif
   }
 
   payload_len = nhwra_tx_copy_payload(tx_buf);
@@ -966,7 +975,7 @@ static void start_Tx(void) {
    * When doing so, we should still calculate the ble and 154 crc's with their optimized table implementations
    * Here we just assume the CRC is configured as it should given the modulation */
   uint32_t crc_init = NRF_RADIO_regs.CRCINIT & RADIO_CRCINIT_CRCINIT_Msk;
-  if (nhwra_is_ble_mode(NRF_RADIO_regs.MODE)) {
+  if (nhwra_is_ble_mode(NRF_RADIO_regs.MODE) || nhwra_is_prop_mode(NRF_RADIO_regs.MODE)) {
     append_crc_ble(tx_buf, header_len + payload_len, crc_init);
   } else if (NRF_RADIO_regs.MODE == RADIO_MODE_MODE_Ieee802154_250Kbit) {
     //15.4 does not CRC the length (header) field

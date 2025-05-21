@@ -303,6 +303,17 @@ bool nhwra_is_ble_mode(uint32_t MODE) {
   }
 }
 
+bool nhwra_is_prop_mode(uint32_t MODE) {
+  if ((MODE == RADIO_MODE_MODE_Nrf_1Mbit)
+      || (MODE == RADIO_MODE_MODE_Nrf_2Mbit)
+      || (MODE == RADIO_MODE_MODE_Nrf_4Mbit_0BT6)
+      || (MODE == RADIO_MODE_MODE_Nrf_4Mbit_0BT4)) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 /**
  * Prepare a Phy Rxv2 request structure
  * based on the radio registers configuration
