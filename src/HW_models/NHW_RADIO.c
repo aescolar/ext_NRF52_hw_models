@@ -1013,10 +1013,10 @@ static void start_Tx(void) {
     int ret;
     if (tx_status.codedphy) {
       //Request the FEC1 Tx from the Phy:
-      ret = p2G4_dev_req_txv2_nc_b(&tx_status.tx_req_fec1, &CI, &tx_status.tx_resp);
+      ret = p2G4_dev_req_tx2v1_nc_b(&tx_status.tx_req_fec1, &CI, &tx_status.tx_resp);
     } else { /* not codedphy */
       //Request the Tx from the Phy:
-      ret = p2G4_dev_req_txv2_nc_b(&tx_status.tx_req, tx_buf, &tx_status.tx_resp);
+      ret = p2G4_dev_req_tx2v1_nc_b(&tx_status.tx_req, tx_buf, &tx_status.tx_resp);
     }
     handle_Tx_response(ret);
   }
@@ -1032,7 +1032,7 @@ static void start_Tx_FEC2(void) {
   int ret;
   update_abort_struct(&tx_status.tx_req.abort, &next_recheck_time);
   tx_status.tx_req.phy_address = 0; /* An invalid address */
-  ret = p2G4_dev_req_txv2_nc_b(&tx_status.tx_req, tx_buf, &tx_status.tx_resp);
+  ret = p2G4_dev_req_tx2v1_nc_b(&tx_status.tx_req, tx_buf, &tx_status.tx_resp);
   handle_Tx_response(ret);
 }
 
@@ -1236,9 +1236,9 @@ static void handle_Rx_response(int ret){
  * (the abort reevaluation will be left pending)
  */
 static p2G4_rssi_power_t Rx_abort_imm_RSSI(void) {
-  p2G4_rssi_t rssi_req;
+  p2G4_rssiv2_t rssi_req;
   p2G4_rssi_done_t rssi_resp;
-  p2G4_rxv2_t *rx_req = &rx_status.rx_req;
+  p2G4_rx2v1_t *rx_req = &rx_status.rx_req;
 
   //Right now, though as an immediate request this is actually ignored by the Phy:
   rssi_req.meas_time = hwll_phy_time_from_dev(nsi_hws_get_time());
@@ -1325,11 +1325,11 @@ static void start_Rx(void) {
   //attempt to receive
   int ret;
   if (rx_status.codedphy) {
-    ret = p2G4_dev_req_rxv2_nc_b(&rx_status.rx_req_fec1, rx_addresses,
+    ret = p2G4_dev_req_rx2v1_nc_b(&rx_status.rx_req_fec1, rx_addresses,
                                  &rx_status.rx_resp, &rx_pkt_buffer_ptr,
                                  _NRF_MAX_PACKET_SIZE);
   } else {
-    ret = p2G4_dev_req_rxv2_nc_b(&rx_status.rx_req, rx_addresses,
+    ret = p2G4_dev_req_rx2v1_nc_b(&rx_status.rx_req, rx_addresses,
                                  &rx_status.rx_resp,&rx_pkt_buffer_ptr,
                                  _NRF_MAX_PACKET_SIZE);
   }
@@ -1368,7 +1368,7 @@ static void start_Rx_FEC2(void) {
 
   int ret;
 
-  ret = p2G4_dev_req_rxv2_nc_b(&rx_status.rx_req, NULL,
+  ret = p2G4_dev_req_rx2v1_nc_b(&rx_status.rx_req, NULL,
                                &rx_status.rx_resp, &rx_pkt_buffer_ptr,
                                _NRF_MAX_PACKET_SIZE);
 
@@ -1552,7 +1552,7 @@ static void start_CCA_ED(bool CCA_not_ED){
   nhwra_set_Timer_RADIO(cca_status.CCA_end_time);
 
   //Request the CCA from the Phy:
-  int ret = p2G4_dev_req_cca_nc_b(&cca_status.cca_req, &cca_status.cca_resp);
+  int ret = p2G4_dev_req_ccav2_nc_b(&cca_status.cca_req, &cca_status.cca_resp);
   handle_CCA_response(ret);
 }
 

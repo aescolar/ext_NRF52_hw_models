@@ -310,7 +310,7 @@ bool nhwra_is_ble_mode(uint32_t MODE) {
  *
  * Note: The abort substructure is NOT filled.
  */
-void nhwra_prep_rx_request(p2G4_rxv2_t *rx_req, p2G4_address_t *rx_addresses) {
+void nhwra_prep_rx_request(p2G4_rx2v1_t *rx_req, p2G4_address_t *rx_addresses) {
 
   //TOLOW: Add support for other packet formats and bitrates
   uint8_t preamble_length = 0;
@@ -362,9 +362,7 @@ void nhwra_prep_rx_request(p2G4_rxv2_t *rx_req, p2G4_address_t *rx_addresses) {
 
   rx_req->coding_rate = 0;
 
-  p2G4_freq_t center_freq;
-  p2G4_freq_from_d(freq_off, 1, &center_freq);
-  rx_req->radio_params.center_freq = center_freq;
+  rx_req->radio_params.center_freq = p2G4_freq2_from_d(freq_off + 2400);
 
   rx_req->error_calc_rate = bits_per_us*1000000;
   rx_req->antenna_gain = 0;
@@ -393,13 +391,11 @@ void nhwra_prep_rx_request(p2G4_rxv2_t *rx_req, p2G4_address_t *rx_addresses) {
  *
  * Note: The abort substructure is NOT filled.
  */
-void nhwra_prep_rx_request_FEC1(p2G4_rxv2_t *rx_req, p2G4_address_t *rx_addresses) {
+void nhwra_prep_rx_request_FEC1(p2G4_rx2v1_t *rx_req, p2G4_address_t *rx_addresses) {
 
   uint32_t freq_off = NRF_RADIO_regs.FREQUENCY & RADIO_FREQUENCY_FREQUENCY_Msk;
-  p2G4_freq_t center_freq;
 
-  p2G4_freq_from_d(freq_off, 1, &center_freq);
-  rx_req->radio_params.center_freq = center_freq;
+  rx_req->radio_params.center_freq =  p2G4_freq2_from_d(freq_off + 2400);
 
   rx_addresses[0] = nhwra_get_address(0); /* We only support RXADDRESSES == 0x01 by now */
   rx_req->n_addr = 1;
@@ -506,7 +502,7 @@ static double nhwra_tx_power_from_reg(void) {
  *
  * Note: The abort substructure is NOT filled.
  */
-void nhwra_prep_tx_request(p2G4_txv2_t *tx_req, uint packet_size, bs_time_t packet_duration,
+void nhwra_prep_tx_request(p2G4_tx2v1_t *tx_req, uint packet_size, bs_time_t packet_duration,
                            bs_time_t start_time, uint16_t coding_rate) {
 
   tx_req->radio_params.modulation = nhra_modulation_from_mode(NRF_RADIO_regs.MODE);
@@ -520,9 +516,7 @@ void nhwra_prep_tx_request(p2G4_txv2_t *tx_req, uint packet_size, bs_time_t pack
 
   { //Note only default freq. map supported
     uint32_t freq_off = NRF_RADIO_regs.FREQUENCY & RADIO_FREQUENCY_FREQUENCY_Msk;
-    p2G4_freq_t center_freq;
-    p2G4_freq_from_d(freq_off, 1, &center_freq);
-    tx_req->radio_params.center_freq = center_freq;
+    tx_req->radio_params.center_freq = p2G4_freq2_from_d(freq_off + 2400);
   }
   tx_req->packet_size  = packet_size; //Not including preamble or address
 
@@ -541,15 +535,13 @@ void nhwra_prep_tx_request(p2G4_txv2_t *tx_req, uint packet_size, bs_time_t pack
  *
  * Note: The abort substructure is NOT filled.
  */
-void nhwra_prep_cca_request(p2G4_cca_t *cca_req, bool CCA_not_ED, double rx_pow_offset) {
+void nhwra_prep_cca_request(p2G4_ccav2_t *cca_req, bool CCA_not_ED, double rx_pow_offset) {
 
   cca_req->start_time  = hwll_phy_time_from_dev(nsi_hws_get_time()); //We start right now
   cca_req->antenna_gain = 0;
 
   uint32_t freq_off = NRF_RADIO_regs.FREQUENCY & RADIO_FREQUENCY_FREQUENCY_Msk;
-  p2G4_freq_t center_freq;
-  p2G4_freq_from_d(freq_off, 1, &center_freq);
-  cca_req->radio_params.center_freq = center_freq;
+  cca_req->radio_params.center_freq = p2G4_freq2_from_d(freq_off + 2400);
 
   if (NRF_RADIO_regs.MODE == RADIO_MODE_MODE_Ieee802154_250Kbit) {
     cca_req->radio_params.modulation = P2G4_MOD_154_250K_DSS;

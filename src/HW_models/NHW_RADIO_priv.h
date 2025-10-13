@@ -44,8 +44,8 @@ typedef struct {
   bs_time_t PAYLOAD_End_Time;
   bs_time_t CRC_End_Time;
   bs_time_t CRC_duration;
-  p2G4_rxv2_t rx_req_fec1;
-  p2G4_rxv2_t rx_req;
+  p2G4_rx2v1_t rx_req_fec1;
+  p2G4_rx2v1_t rx_req;
   p2G4_rxv2_done_t rx_resp;
   bool CRC_OK;
   bool packet_rejected;
@@ -61,15 +61,15 @@ typedef struct {
   bs_time_t FEC2_start_time; /* In air */
   bs_time_t PAYLOAD_end_time;
   bs_time_t CRC_end_time;
-  p2G4_txv2_t tx_req_fec1;
-  p2G4_txv2_t tx_req;
+  p2G4_tx2v1_t tx_req_fec1;
+  p2G4_tx2v1_t tx_req;
   p2G4_tx_done_t tx_resp;
   bool codedphy;
 } RADIO_Tx_status_t;
 
 typedef struct {
   bs_time_t CCA_end_time;
-  p2G4_cca_t cca_req;
+  p2G4_ccav2_t cca_req;
   p2G4_cca_done_t cca_resp;
   bool is_busy;
   bool CCA_notED; //Is it a CCA procedure (1), or ED procedure (0)
