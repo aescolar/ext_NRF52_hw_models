@@ -12,10 +12,17 @@
 
 /**
  * Notes:
- *   * The functionality of TASK_SHUTDOWN is a bit of a guess
- *   * INTENCLR will always read as 0
- *   * Unlike in real HW, tasks cannot occur simultaneously, they always happen in some sequence
- *     so task priority is not accounted for
+ *   1. The functionality of TASK_SHUTDOWN is a bit of a guess
+ *   2. INTENCLR will always read as 0
+ *   3. Unlike in real HW, tasks cannot occur simultaneously, they always happen in some sequence
+ *      so task priority is not accounted for
+ *   4. This model has a 1 microsecond resolution:
+ *      It rounds up(ceil()) the compare events timing to the closest microsecond.
+ *      Similarly, if the timer is stopped and started it is done with a 1 microsecond time resolution.
+ *      So, it cannot be used to time or cause things to happen with a higher resolution than that even
+ *      using the PPI or DPPI.
+ *   5. If multiple compare events happen in the same microsecond, they are ordered by timer and channel,
+ *      not by the fractional microsecond in which they would have happened
  *
  * Implementation notes:
  *
@@ -152,10 +159,12 @@ static uint32_t time_to_counter(bs_time_t delta, int t){
 /**
  * Convert a counter delta to us accounting for the PRESCALER
  * and the timer clock frequency
+ * "Rounding up"(ceil()) the result to the closest microsecond
  */
 static bs_time_t counter_to_time(uint64_t counter, int t){
   bs_time_t Elapsed;
-  Elapsed = (counter << NRF_TIMER_regs[t].PRESCALER) / nhw_timer_st[t].base_freq;
+  int base_freq = nhw_timer_st[t].base_freq;
+  Elapsed = ((counter << NRF_TIMER_regs[t].PRESCALER) + base_freq - 1) / base_freq;
   return Elapsed;
 }
 
@@ -217,7 +226,9 @@ static void update_cc_timer(int t, int cc) {
   if ((this->is_running == true) && (NRF_TIMER_regs[t].MODE == 0)) {
     bs_time_t next_match = this->start_t
                            + counter_to_time(NRF_TIMER_regs[t].CC[cc] & mask_from_bitmode(t), t);
-    while (next_match <= nsi_hws_get_time()) {
+    bs_time_t now = nsi_hws_get_time();
+
+    while (next_match <= now) {
       next_match += time_of_1_counter_wrap(t);
     }
     this->CC_timers[cc] = next_match;
