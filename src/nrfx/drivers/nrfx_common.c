@@ -86,11 +86,7 @@ IRQn_Type nrfx_get_irq_number(void const * p_reg){
   } else if (IS_PERIPHERAL_REG(p_reg, UARTE, 1,)) {
     return UARTE1_IRQn;
   /*40-47*/
-  } else {
-    bs_trace_error_time_line("Tried to get the peripheral number of an address unknown to these HW models\n");
-    return 0; /* unreachable */
   }
-
 
 #elif defined(NRF5340_XXAA_NETWORK)
 
@@ -137,9 +133,6 @@ IRQn_Type nrfx_get_irq_number(void const * p_reg){
       return SWI2_IRQn;
   } else if (IS_PERIPHERAL_REG(p_reg, SWI, 3, _NS)) {
       return SWI3_IRQn;
-  } else {
-    bs_trace_error_time_line("Tried to get the peripheral number of an address unknown to these HW models\n");
-    return 0; /* unreachable */
   }
 #elif defined(NRF5340_XXAA_APPLICATION)
 
@@ -200,11 +193,7 @@ IRQn_Type nrfx_get_irq_number(void const * p_reg){
   /* 55 USBREGULATOR*/
   /* 57 KMU */
   /* 68 CRYPTOCELL */
-  } else {
-    bs_trace_error_time_line("Tried to get the peripheral number of an address unknown to these HW models\n");
-    return 0; /* unreachable */
   }
-
 
 #elif defined(NRF54L15_XXAA) && defined(NRF_APPLICATION)
 
@@ -307,9 +296,6 @@ IRQn_Type nrfx_get_irq_number(void const * p_reg){
     return CLOCK_POWER_IRQn;
   } else if (IS_PERIPHERAL_REG(p_reg, POWER, , _S)) {
     return CLOCK_POWER_IRQn;
-  } else {
-    bs_trace_error_time_line("Tried to get the peripheral number of an address unknown to these HW models\n");
-    return 0; /* unreachable */
   }
 
 #elif (defined(NRF54LM20A_XXAA) || defined(NRF54LM20A_ENGA_XXAA)) && defined(NRF_APPLICATION)
@@ -420,13 +406,13 @@ IRQn_Type nrfx_get_irq_number(void const * p_reg){
     return CLOCK_POWER_IRQn;
   } else if (IS_PERIPHERAL_REG(p_reg, POWER, , _S)) {
     return CLOCK_POWER_IRQn;
-  } else {
-    bs_trace_error_time_line("Tried to get the peripheral number of an address unknown to these HW models\n");
-    return 0; /* unreachable */
   }
 
 #else
 #error "Unsuported SOC/cpu"
 #endif
-
+  else {
+    bs_trace_error_time_line("Tried to get the peripheral number of an address unknown to these HW models\n");
+    return 0; /* unreachable */
+  }
 }
