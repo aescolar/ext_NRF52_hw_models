@@ -25,6 +25,16 @@
 extern NRF_RADIO_Type NRF_RADIO_regs;
 static double cheat_tx_power_offset;
 
+p2G4_freq_t nhwra_get_freq(void) {
+  double freq_off;
+
+  //Note only default freq. map supported
+  freq_off = (NRF_RADIO_regs.FREQUENCY & RADIO_FREQUENCY_FREQUENCY_Msk);
+  p2G4_freq_t center_freq;
+  p2G4_freq_from_d(freq_off, 1, &center_freq);
+  return center_freq;
+}
+
 static void nrfra_check_crc_conf_ble(void) {
   if ( (NRF_RADIO_regs.CRCCNF & RADIO_CRCCNF_LEN_Msk)
       != (RADIO_CRCCNF_LEN_Three << RADIO_CRCCNF_LEN_Pos) ) {
@@ -248,7 +258,7 @@ int nhwra_is_HW_TIFS_enabled(void) {
   return 0;
 }
 
-static uint64_t nhwra_get_address(uint logical_addr) {
+uint64_t nhwra_get_address(uint logical_addr) {
   uint64_t address;
 
   if (NRF_RADIO_regs.MODE == RADIO_MODE_MODE_Ieee802154_250Kbit) {
@@ -319,7 +329,6 @@ void nhwra_prep_rx_request(p2G4_rxv2_t *rx_req, p2G4_address_t *rx_addresses) {
   bs_time_t pre_trunc = 0;
   uint16_t sync_threshold = 0;
 
-  uint32_t freq_off = NRF_RADIO_regs.FREQUENCY & RADIO_FREQUENCY_FREQUENCY_Msk;
   double bits_per_us = 0;
 
   rx_addresses[0] = nhwra_get_address(0); /* We only support RXADDRESSES == 0x01 by now */
@@ -362,9 +371,7 @@ void nhwra_prep_rx_request(p2G4_rxv2_t *rx_req, p2G4_address_t *rx_addresses) {
 
   rx_req->coding_rate = 0;
 
-  p2G4_freq_t center_freq;
-  p2G4_freq_from_d(freq_off, 1, &center_freq);
-  rx_req->radio_params.center_freq = center_freq;
+  rx_req->radio_params.center_freq = nhwra_get_freq();
 
   rx_req->error_calc_rate = bits_per_us*1000000;
   rx_req->antenna_gain = 0;
@@ -395,11 +402,7 @@ void nhwra_prep_rx_request(p2G4_rxv2_t *rx_req, p2G4_address_t *rx_addresses) {
  */
 void nhwra_prep_rx_request_FEC1(p2G4_rxv2_t *rx_req, p2G4_address_t *rx_addresses) {
 
-  uint32_t freq_off = NRF_RADIO_regs.FREQUENCY & RADIO_FREQUENCY_FREQUENCY_Msk;
-  p2G4_freq_t center_freq;
-
-  p2G4_freq_from_d(freq_off, 1, &center_freq);
-  rx_req->radio_params.center_freq = center_freq;
+  rx_req->radio_params.center_freq = nhwra_get_freq();
 
   rx_addresses[0] = nhwra_get_address(0); /* We only support RXADDRESSES == 0x01 by now */
   rx_req->n_addr = 1;
@@ -500,6 +503,13 @@ static double nhwra_tx_power_from_reg(void) {
   return TxPower;
 }
 
+static p2G4_power_t nhwra_get_tx_power(void) {
+  double TxPower = nhwra_tx_power_from_reg();
+  //Note that any possible Tx antenna or PA gain would need to be included here
+  p2G4_power_t power_level = p2G4_power_from_d(TxPower + cheat_tx_power_offset);
+  return power_level;
+}
+
 /**
  * Prepare a Phy Tx request structure
  * based on the radio registers configuration.
@@ -513,17 +523,9 @@ void nhwra_prep_tx_request(p2G4_txv2_t *tx_req, uint packet_size, bs_time_t pack
 
   tx_req->phy_address = nhwra_get_address(NRF_RADIO_regs.TXADDRESS);
 
-  {
-    double TxPower = nhwra_tx_power_from_reg();
-    tx_req->power_level = p2G4_power_from_d(TxPower + cheat_tx_power_offset); //Note that any possible Tx antenna or PA gain would need to be included here
-  }
+  tx_req->power_level = nhwra_get_tx_power();
 
-  { //Note only default freq. map supported
-    uint32_t freq_off = NRF_RADIO_regs.FREQUENCY & RADIO_FREQUENCY_FREQUENCY_Msk;
-    p2G4_freq_t center_freq;
-    p2G4_freq_from_d(freq_off, 1, &center_freq);
-    tx_req->radio_params.center_freq = center_freq;
-  }
+  tx_req->radio_params.center_freq = nhwra_get_freq();
   tx_req->packet_size  = packet_size; //Not including preamble or address
 
   {
@@ -546,10 +548,7 @@ void nhwra_prep_cca_request(p2G4_cca_t *cca_req, bool CCA_not_ED, double rx_pow_
   cca_req->start_time  = hwll_phy_time_from_dev(nsi_hws_get_time()); //We start right now
   cca_req->antenna_gain = 0;
 
-  uint32_t freq_off = NRF_RADIO_regs.FREQUENCY & RADIO_FREQUENCY_FREQUENCY_Msk;
-  p2G4_freq_t center_freq;
-  p2G4_freq_from_d(freq_off, 1, &center_freq);
-  cca_req->radio_params.center_freq = center_freq;
+  cca_req->radio_params.center_freq = nhwra_get_freq();
 
   if (NRF_RADIO_regs.MODE == RADIO_MODE_MODE_Ieee802154_250Kbit) {
     cca_req->radio_params.modulation = P2G4_MOD_154_250K_DSS;

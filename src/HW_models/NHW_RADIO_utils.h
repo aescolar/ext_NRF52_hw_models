@@ -31,6 +31,9 @@ uint32_t nhwra_get_rx_crc_value(uint8_t *rx_buf, size_t rx_packet_size);
 uint nhwra_get_crc_length(void);
 uint nhwra_get_MAXLEN(void);
 bool nhwra_is_ble_mode(uint32_t MODE);
+uint64_t nhwra_get_address(uint logical_addr);
+p2G4_freq_t nhwra_get_freq(void);
+p2G4_power_t nhwra_get_tx_power(void);
 
 #ifdef __cplusplus
 }

@@ -229,7 +229,7 @@ static RADIO_CCA_status_t cca_status;
 
 static double bits_per_us; //Bits per us for the ongoing Tx or Rx
 
-static bs_time_t next_recheck_time; // when we asked the phy to recheck (in our own time) next time
+static bs_time_t abort_next_recheck_time; // when we asked the phy to recheck (in our own time) next time
 static abort_state_t abort_fsm_state = No_pending_abort_reeval; //This variable shall be set to Tx/Rx_Abort_reeval when the phy is waiting for an abort response (and in no other circumstance)
 static int aborting_set = 0; //If set, we will abort the current Tx/Rx/CCA at the next abort reevaluation
 
@@ -865,9 +865,9 @@ static void handle_Tx_response(int ret){
     phy_sync_ctrl_set_last_phy_sync_time(end_time);
     //The main machine was already pre-programmed at the Tx Start, no need to do anything else now
   } else if ( ret == P2G4_MSG_ABORTREEVAL ) {
-    phy_sync_ctrl_set_last_phy_sync_time( next_recheck_time );
+    phy_sync_ctrl_set_last_phy_sync_time(abort_next_recheck_time);
     abort_fsm_state = Tx_Abort_reeval;
-    nhwra_set_Timer_abort_reeval(next_recheck_time);
+    nhwra_set_Timer_abort_reeval(abort_next_recheck_time);
   }
 }
 
@@ -899,7 +899,7 @@ static void Tx_abort_eval_respond(void) {
   //The abort must have been evaluated by now so we can respond to the waiting phy
   p2G4_abort_t *abort = &tx_status.tx_req.abort;
 
-  update_abort_struct(abort, &next_recheck_time);
+  update_abort_struct(abort, &abort_next_recheck_time);
 
   int ret = p2G4_dev_provide_new_tx_abort_nc_b(abort);
 
@@ -994,7 +994,7 @@ static void start_Tx(void) {
     bs_time_t fec1_duration = 80 + 256 + 16 + 24;
 
     nhwra_prep_tx_request(&tx_status.tx_req_fec1, 1, fec1_duration, hwll_phy_time_from_dev(nsi_hws_get_time()), 8);
-    update_abort_struct(&tx_status.tx_req_fec1.abort, &next_recheck_time);
+    update_abort_struct(&tx_status.tx_req_fec1.abort, &abort_next_recheck_time);
     main_packet_start_time = tx_status.tx_req_fec1.end_tx_time + 1;
     tx_status.FEC2_start_time = main_packet_start_time; /* in air */
   } else {
@@ -1007,7 +1007,7 @@ static void start_Tx(void) {
 
   nhwra_prep_tx_request(&tx_status.tx_req, main_packet_size, packet_duration,
                         main_packet_start_time, main_packet_coding_rate);
-  update_abort_struct(&tx_status.tx_req.abort, &next_recheck_time);
+  update_abort_struct(&tx_status.tx_req.abort, &abort_next_recheck_time);
 
   if (!is_cheat_tx_disabled(true)) {
     int ret;
@@ -1030,7 +1030,7 @@ static void start_Tx_FEC2(void) {
     return;
   }
   int ret;
-  update_abort_struct(&tx_status.tx_req.abort, &next_recheck_time);
+  update_abort_struct(&tx_status.tx_req.abort, &abort_next_recheck_time);
   tx_status.tx_req.phy_address = 0; /* An invalid address */
   ret = p2G4_dev_req_txv2_nc_b(&tx_status.tx_req, tx_buf, &tx_status.tx_resp);
   handle_Tx_response(ret);
@@ -1179,9 +1179,9 @@ static void handle_Rx_response(int ret){
 
   } else if (ret == P2G4_MSG_ABORTREEVAL) {
 
-    phy_sync_ctrl_set_last_phy_sync_time( next_recheck_time );
+    phy_sync_ctrl_set_last_phy_sync_time(abort_next_recheck_time);
     abort_fsm_state = Rx_Abort_reeval;
-    nhwra_set_Timer_abort_reeval( BS_MAX(next_recheck_time,nsi_hws_get_time()) );
+    nhwra_set_Timer_abort_reeval( BS_MAX(abort_next_recheck_time,nsi_hws_get_time()) );
 
   } else  if ((ret == P2G4_MSG_RXV2_ADDRESSFOUND) && (radio_state == RAD_RX /*if we havent aborted*/)) {
 
@@ -1263,7 +1263,7 @@ static p2G4_rssi_power_t Rx_abort_imm_RSSI(void) {
 static void Rx_abort_eval_respond(void) {
   //The abort must have been evaluated by now so we can respond to the waiting phy
   p2G4_abort_t *abort = &rx_status.rx_req.abort;
-  update_abort_struct(abort, &next_recheck_time);
+  update_abort_struct(abort, &abort_next_recheck_time);
 
   int ret = p2G4_dev_provide_new_rxv2_abort_nc_b(abort);
 
@@ -1313,10 +1313,10 @@ static void start_Rx(void) {
 
   if (rx_status.codedphy) {
     nhwra_prep_rx_request_FEC1(&rx_status.rx_req_fec1, rx_addresses);
-    update_abort_struct(&rx_status.rx_req_fec1.abort, &next_recheck_time);
+    update_abort_struct(&rx_status.rx_req_fec1.abort, &abort_next_recheck_time);
   }
   nhwra_prep_rx_request(&rx_status.rx_req, rx_addresses);
-  update_abort_struct(&rx_status.rx_req.abort, &next_recheck_time);
+  update_abort_struct(&rx_status.rx_req.abort, &abort_next_recheck_time);
 
   if (is_cheat_rx_dont_sync()) {
     rx_addresses[0] = 0xDEADBEAF;
@@ -1364,7 +1364,7 @@ static void start_Rx_FEC2(void) {
 
   rx_status.CRC_duration = nhwra_get_crc_length()*8/bits_per_us;
 
-  update_abort_struct(&rx_status.rx_req.abort, &next_recheck_time);
+  update_abort_struct(&rx_status.rx_req.abort, &abort_next_recheck_time);
 
   int ret;
 
@@ -1403,7 +1403,7 @@ static void Rx_Addr_received(void) {
     }
   }
 
-  update_abort_struct(&rx_status.rx_req.abort, &next_recheck_time);
+  update_abort_struct(&rx_status.rx_req.abort, &abort_next_recheck_time);
   int ret = p2G4_dev_rxv2_cont_after_addr_nc_b(accept_packet, &rx_status.rx_req.abort);
 
   if ( accept_packet ){ /* Always true for CodedPhy FEC1 */
@@ -1511,9 +1511,9 @@ static void handle_CCA_response(int ret){
     }
     CCA_handle_end_response();
   } else if ( ret == P2G4_MSG_ABORTREEVAL ) {
-    phy_sync_ctrl_set_last_phy_sync_time( next_recheck_time );
+    phy_sync_ctrl_set_last_phy_sync_time(abort_next_recheck_time);
     abort_fsm_state = CCA_Abort_reeval;
-    nhwra_set_Timer_abort_reeval(next_recheck_time);
+    nhwra_set_Timer_abort_reeval(abort_next_recheck_time);
   }
 }
 
@@ -1525,7 +1525,7 @@ static void CCA_abort_eval_respond(void) {
   //The abort must have been evaluated by now so we can respond to the waiting phy
   p2G4_abort_t *abort = &cca_status.cca_req.abort;
 
-  update_abort_struct(abort, &next_recheck_time);
+  update_abort_struct(abort, &abort_next_recheck_time);
 
   int ret = p2G4_dev_provide_new_cca_abort_nc_b(abort);
 
@@ -1545,7 +1545,7 @@ static void start_CCA_ED(bool CCA_not_ED){
 
   nhwra_prep_cca_request(&cca_status.cca_req, CCA_not_ED, cheat_options.rx_power_offset);
 
-  update_abort_struct(&cca_status.cca_req.abort, &next_recheck_time);
+  update_abort_struct(&cca_status.cca_req.abort, &abort_next_recheck_time);
 
   //Expected end time; note that it may be shorter if detect over threshold is set
   cca_status.CCA_end_time = nsi_hws_get_time() + cca_status.cca_req.scan_duration;
