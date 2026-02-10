@@ -1,4 +1,4 @@
-src/nrfx/drivers/nrfx_common.c
+src/nrfx/drivers/nrfx_common.54L15.c
 src/nrfx/hal/nrf_54_aar.c
 src/nrfx/hal/nrf_54_ccm.c
 src/nrfx/hal/nrf_54_ecb.c
@@ -13,6 +13,7 @@ src/nrfx/hal/nrf_gpio.c
 src/nrfx/hal/nrf_gpiote.c
 src/nrfx/hal/nrf_grtc.c
 src/nrfx/hal/nrf_hack.c
+src/nrfx/hal/nrf_hack.54L15.c
 src/nrfx/hal/nrf_ppib.c
 src/nrfx/hal/nrf_radio.c
 src/nrfx/hal/nrf_rramc.c

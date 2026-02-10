@@ -1,4 +1,4 @@
-src/nrfx/drivers/nrfx_common.c
+src/nrfx/drivers/nrfx_common.52833.c
 src/nrfx/hal/nrf_ccm.c
 src/nrfx/hal/nrf_common.c
 src/nrfx/hal/nrf_rtc.c
@@ -18,4 +18,5 @@ src/nrfx/hal/nrf_ecb.c
 src/nrfx/hal/nrf_uart.c
 src/nrfx/hal/nrf_uarte.c
 src/nrfx/hal/nrf_hack.c
+src/nrfx/hal/nrf_hack.52833.c
 src/nrfx/mdk_replacements/system.c
