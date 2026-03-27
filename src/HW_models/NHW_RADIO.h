@@ -25,6 +25,7 @@ void nhw_RADIO_TASK_RSSISTOP(void);
 void nhw_RADIO_TASK_BCSTART(void);
 void nhw_RADIO_TASK_BCSTOP(void);
 void nhw_RADIO_TASK_SOFTRESET(void);
+void nhw_RADIO_TASK_PLLEN(void);
 
 void nhw_RADIO_regw_sideeffects_BCC(void);
 void nhw_RADIO_regw_sideeffects_POWER(void);
