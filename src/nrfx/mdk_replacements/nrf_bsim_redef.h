@@ -23,7 +23,7 @@ void *nhw_convert_periph_base_addr(void *hw_addr);
 #if defined(NRF52833_XXAA)
 #include "nrf_bsim_redef.52833.h"
 
-#elif defined(NRF5340_XXAA_NETWORK) || defined(NRF5340_XXAA_APPLICATION)
+#elif defined(NRF5340_XXAA) || defined(NRF5340_XXAA_NETWORK) || defined(NRF5340_XXAA_APPLICATION)
 #include "nrf_bsim_redef.5340.h"
 
 #elif defined(NRF54L15_XXAA)
