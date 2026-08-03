@@ -5,23 +5,30 @@
  */
 
 #include "NHW_misc_int.h"
-#include "nrf_bsim_redef.h"
-/* The nrf_bsim_redef.h header which is meant to hack the
- * nrf definitions only provides declarations for the
- * registers structures for a given core. So we need to declare
- * the ones that are exclusive for either core here.
- *
- * If at some point we have more uses for a bulk peripheral definitions
- * of all peripherals in a SOC consider moving it to a separate header
- */
+
 extern NRF_AAR_Type NRF_AAR_regs;
 extern NRF_CCM_Type NRF_CCM_regs;
 extern NRF_ECB_Type NRF_ECB_regs;
+extern NRF_EGU_Type NRF_EGU_regs[];
+extern NRF_CLOCK_Type *NRF_CLOCK_regs[];
+extern NRF_DPPIC_Type NRF_DPPIC_regs[];
+extern void *NRF_FICR_regs_p[];
+extern NRF_GPIO_Type NRF_GPIO_regs[];
+extern NRF_GPIOTE_Type NRF_GPIOTE_regs[];
+extern NRF_IPC_Type NRF_IPC_regs[NHW_IPC_TOTAL_INST];
+extern NRF_MUTEX_Type NRF_MUTEX_regs;
 extern NRF_NFCT_Type NRF_NFCT_regs;
+extern NRF_NVMC_Type *NRF_NVMC_regs_p[];
+extern NRF_POWER_Type *NRF_POWER_regs[];
 extern NRF_RADIO_Type NRF_RADIO_regs;
+extern NRF_RESET_Type *NRF_RESET_regs[];
 extern NRF_RNG_Type NRF_RNG_regs;
+extern NRF_RTC_Type NRF_RTC_regs[];
 extern int NRF_SWI_regs[];
+extern NRF_TIMER_Type NRF_TIMER_regs[];
 extern NRF_TEMP_Type NRF_TEMP_regs;
+extern NRF_UARTE_Type NRF_UARTE_regs[];
+extern NRF_UICR_Type *NRF_UICR_regs_p[];
 extern NRF_VREQCTRL_Type NRF_VREQCTRL_regs;
 extern NRF_SPU_Type NRF_SPU_regs[];
 
