@@ -315,6 +315,8 @@ extern NRF_GPIO_Type NRF_GPIO_regs[];
 /********************************************************************/
 #elif defined(NRF5340_XXAA_APPLICATION)
 
+#include <stdint.h> /* For uintptr_t */
+
 #undef NRF_CACHEDATA_S_BASE
 #define NRF_CACHEDATA_S_BASE        NULL
 #undef NRF_CACHEINFO_S_BASE
@@ -462,19 +464,27 @@ extern NRF_GPIOTE_Type NRF_GPIOTE_regs[];
 #define NRF_SAADC_NS_BASE           NULL
 #undef NRF_SAADC_S_BASE
 #define NRF_SAADC_S_BASE            NULL
+/* NRF_TIMER_Type is defined with different sizes in the MDK in the APP and NET core MDKs (with 6 and 8 CCs).
+ * The HW registers are instantiated using the biggest size (NET core defined struct), which is 1440 bytes
+ * But as this header is included by both APP and NET core SW, we need to fix the indexing to be
+ * based on the size of the biggest.
+ * Note: even though this is ugly, it produces the desired result, while not adding an
+ *       "incorrect" definition of NRF_TIMER_regs which could confuse other developers
+ * Note: 5340 CPU APP SW should **NOT** refer directly to NRF_TIMER_regs[x>1] (it does not need to)
+ */
 extern NRF_TIMER_Type NRF_TIMER_regs[];
 #undef NRF_TIMER0_NS_BASE
-#define NRF_TIMER0_NS_BASE          (&NRF_TIMER_regs[NHW_TIMER_APP0])
+#define NRF_TIMER0_NS_BASE          ((NRF_TIMER_Type *)((uintptr_t)NRF_TIMER_regs + NHW_TIMER_APP0*1440))
 #undef NRF_TIMER0_S_BASE
-#define NRF_TIMER0_S_BASE           (&NRF_TIMER_regs[NHW_TIMER_APP0])
+#define NRF_TIMER0_S_BASE           ((NRF_TIMER_Type *)((uintptr_t)NRF_TIMER_regs + NHW_TIMER_APP0*1440))
 #undef NRF_TIMER1_NS_BASE
-#define NRF_TIMER1_NS_BASE          (&NRF_TIMER_regs[NHW_TIMER_APP1])
+#define NRF_TIMER1_NS_BASE          ((NRF_TIMER_Type *)((uintptr_t)NRF_TIMER_regs + NHW_TIMER_APP1*1440))
 #undef NRF_TIMER1_S_BASE
-#define NRF_TIMER1_S_BASE           (&NRF_TIMER_regs[NHW_TIMER_APP1])
+#define NRF_TIMER1_S_BASE           ((NRF_TIMER_Type *)((uintptr_t)NRF_TIMER_regs + NHW_TIMER_APP1*1440))
 #undef NRF_TIMER2_NS_BASE
-#define NRF_TIMER2_NS_BASE          (&NRF_TIMER_regs[NHW_TIMER_APP2])
+#define NRF_TIMER2_NS_BASE          ((NRF_TIMER_Type *)((uintptr_t)NRF_TIMER_regs + NHW_TIMER_APP2*1440))
 #undef NRF_TIMER2_S_BASE
-#define NRF_TIMER2_S_BASE           (&NRF_TIMER_regs[NHW_TIMER_APP2])
+#define NRF_TIMER2_S_BASE           ((NRF_TIMER_Type *)((uintptr_t)NRF_TIMER_regs + NHW_TIMER_APP2*1440))
 extern NRF_RTC_Type NRF_RTC_regs[];
 #undef NRF_RTC0_NS_BASE
 #define NRF_RTC0_NS_BASE            (&NRF_RTC_regs[NHW_RTC_APP0])
