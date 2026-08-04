@@ -34,22 +34,26 @@ if(CONFIG_SOC_SERIES_BSIM_NRFXX)
   if(CONFIG_SOC_SERIES_BSIM_NRF52X)
     file(STRINGS make_inc/52833_hw_files HW_MODEL_SRCS)
     file(STRINGS make_inc/52833_hal_files HAL_SRCS)
-    set(VARIANT_FLAGS
+    set(VARIANT_HW_FLAGS
         -DNRF52833_XXAA
         -DNRF52833
     )
+    set(VARIANT_HAL_FLAGS ${VARIANT_HW_FLAGS})
   elseif(CONFIG_SOC_SERIES_BSIM_NRF53X)
     file(STRINGS make_inc/5340_hw_files HW_MODEL_SRCS)
-
+    set(VARIANT_HW_FLAGS
+      -DNRF5340_XXAA
+      -DNRF5340
+    )
     if(CONFIG_BOARD_NRF5340BSIM_NRF5340_CPUNET)
       file(STRINGS make_inc/5340_net_hal_files HAL_SRCS)
-      set(VARIANT_FLAGS
+      set(VARIANT_HAL_FLAGS
         -DNRF5340_XXAA_NETWORK
         -DNRF5340
       )
     elseif(CONFIG_BOARD_NRF5340BSIM_NRF5340_CPUAPP)
       file(STRINGS make_inc/5340_app_hal_files HAL_SRCS)
-      set(VARIANT_FLAGS
+      set(VARIANT_HAL_FLAGS
         -DNRF5340_XXAA_APPLICATION
         -DNRF5340
       )
@@ -57,34 +61,37 @@ if(CONFIG_SOC_SERIES_BSIM_NRFXX)
   elseif(CONFIG_BOARD_NRF54LS05BSIM)
     file(STRINGS make_inc/54LS05_hw_files HW_MODEL_SRCS)
     file(STRINGS make_inc/54LS05_app_hal_files HAL_SRCS)
-    set(VARIANT_FLAGS
+    set(VARIANT_HW_FLAGS
         -DNRF54LS05A_XXAA
         -DNRF_APPLICATION
         -DNRF54LS05
     )
+    set(VARIANT_HAL_FLAGS ${VARIANT_HW_FLAGS})
   elseif(CONFIG_BOARD_NRF54L15BSIM)
     file(STRINGS make_inc/54L15_hw_files HW_MODEL_SRCS)
     file(STRINGS make_inc/54L15_app_hal_files HAL_SRCS)
-    set(VARIANT_FLAGS
+    set(VARIANT_HW_FLAGS
         -DNRF54L15_XXAA
         -DNRF_APPLICATION
         -DNRF54L15
     )
+    set(VARIANT_HAL_FLAGS ${VARIANT_HW_FLAGS})
   elseif(CONFIG_BOARD_NRF54LM20BSIM)
     file(STRINGS make_inc/54LM20_hw_files HW_MODEL_SRCS)
     file(STRINGS make_inc/54LM20_app_hal_files HAL_SRCS)
-    set(VARIANT_FLAGS
+    set(VARIANT_HW_FLAGS
         -DNRF54LM20A_XXAA
         -DNRF54LM20A_ENGA_XXAA
         -DNRF_APPLICATION
         -DNRF54LM20
     )
+    set(VARIANT_HAL_FLAGS ${VARIANT_HW_FLAGS})
   endif()
 
   # The nrfx HAL is built in the context of the embedded software
   zephyr_library()
   zephyr_library_sources(${HAL_SRCS})
-  zephyr_library_compile_definitions(${VARIANT_FLAGS})
+  zephyr_library_compile_definitions(${VARIANT_HAL_FLAGS})
 
   zephyr_library_include_directories(
     $ENV{BSIM_COMPONENTS_PATH}/libUtilv1/src/
@@ -108,7 +115,7 @@ if(CONFIG_SOC_SERIES_BSIM_NRFXX)
     -I${NRFX_DIR}
     -I${NRFX_DIR}/bsp/stable/
     -I${NRFX_DIR}/bsp/stable/mdk/
-    ${VARIANT_FLAGS}
+    ${VARIANT_HW_FLAGS}
     -std=gnu11 #The nrfx hal uses non standard features which will cause warnings otherwise
   )
 
