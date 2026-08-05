@@ -383,10 +383,10 @@ static void nhw_UARTE_Rx_match_check(uint inst, struct uarte_status * u_el, uint
   for (int i = 0; i < u_el->n_match; i++) {
     uint32_t enable_mask = (UARTE_DMA_RX_MATCH_CONFIG_ENABLE0_Msk << i);
     if ((NRF_UARTE_regs[inst].DMA.RX.MATCH.CONFIG & enable_mask)
-        && (NRF_UARTE_regs[inst].DMA.RX.MATCH.CANDIDATE[i] == value)) {
+        && (u_el->MATCH_CANDIDATE[i] == value)) {
       NRF_UARTE_regs[inst].DMA.RX.AMOUNT = u_el->RXD_AMOUNT;
       NRF_UARTE_regs[inst].DMA.TX.AMOUNT = u_el->TXD_AMOUNT;
-      nhw_uarte_st[inst].MATCH_CANDIDATE[i] = NRF_UARTE_regs[i].DMA.RX.MATCH.CANDIDATE[i];
+      u_el->MATCH_CANDIDATE[i] = NRF_UARTE_regs[inst].DMA.RX.MATCH.CANDIDATE[i];
 
       if (NRF_UARTE_regs[inst].DMA.RX.MATCH.CONFIG & (UARTE_DMA_RX_MATCH_CONFIG_ONESHOT0_Msk << i)) {
         NRF_UARTE_regs[inst].DMA.RX.MATCH.CONFIG &= ~enable_mask;
