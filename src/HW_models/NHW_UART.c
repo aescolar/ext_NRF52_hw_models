@@ -73,6 +73,12 @@
  *
  *   * FRAMESIZE != 8 and ADDRESS functionality is untested in this model
  *
+ *   * TASK_DMAEND seems to only affect the Rx DMA engine, without having any effect anywhere else.
+ *     It seems what it does is try to empty any data which may be either in the UART Rx FIFO or pending in the Rx DMA itself
+ *     and then end the Rx DMA like if it ended naturally (by reaching MAXCNT).
+ *     The Rx path of the UART itself is not affected. Data keeps on being received and a new StartRx can re-start the Rx DMA to continue, either
+ *     thru a ENDRX->STARTRX SHORT or otherwise.
+ *
  * Implementation notes:
  *   * As for the 54 the data in the line can be a configurable amount between 4 and 9bits (due to address bit),
  *     the "byte" parameters were increased to 16bits. But the naming was kept in most of them as "byte".
@@ -98,6 +104,10 @@
 #include "nsi_hw_scheduler.h"
 #include "nsi_tasks.h"
 #include "nsi_hws_models_if.h"
+
+#if defined(UARTE_TASKS_DMAEND_ResetValue)
+#define NHW_UARTE_HAS_DMAEND 1
+#endif
 
 static struct uarte_status nhw_uarte_st[NHW_UARTE_TOTAL_INST];
 NRF_UARTE_Type NRF_UARTE_regs[NHW_UARTE_TOTAL_INST];
@@ -722,6 +732,19 @@ void nhw_UARTE_TASK_STOPRX(uint inst)
   nhw_uarte_update_timer();
 }
 
+#if NHW_UARTE_HAS_DMAEND
+void nhw_UARTE_TASK_DMAEND(uint inst) {
+  if (!uarte_enabled(inst)) {
+    bs_trace_warning_time_line("TASK_DMAEND for UART%i while it is not enabled in UARTE mode\n",
+                               inst);
+    return;
+  }
+  /* This only affects the Rx path, and only the Rx DMA, the UART itself is left as it was */
+  nhw_UARTE_Rx_DMA_attempt(inst, &nhw_uarte_st[inst]);
+  nhw_UARTE_Rx_DMA_end(inst, &nhw_uarte_st[inst]);
+}
+#endif /* UARTE_TASKS_DMAEND */
+
 #if (NHW_UARTE_HAS_MATCH)
 void nhw_UARTE_TASK_DMA_RX_ENABLEMATCH(uint inst, uint i) {
   NRF_UARTE_regs[inst].DMA.RX.MATCH.CONFIG |= UARTE_DMA_RX_MATCH_CONFIG_ENABLE0_Msk<<i;
@@ -1276,6 +1299,9 @@ static void nhw_UARTE_signal_EVENTS_ENDTX(unsigned int inst) {
 #if (NHW_UARTE_HAS_FRAMETIMEOUT)
 static void nhw_UARTE_signal_EVENTS_FRAMETIMEOUT(unsigned int inst) {
   NHW_SHORT_ST(UARTE, inst, NRF_UARTE_regs[inst]., FRAMETIMEOUT, STOPRX, DMA_RX_STOP)
+#if defined(UARTE_SHORTS_FRAMETIMEOUT_DMAEND_Msk)
+  NHW_SHORT(UARTE, inst, NRF_UARTE_regs[inst]., FRAMETIMEOUT, DMAEND)
+#endif
   nhw_UARTE_signal_EVENTS_FRAMETIMEOUT_noshort(inst);
 }
 #endif
@@ -1330,6 +1356,9 @@ void nhw_UARTE_regw_sideeffects_TASKS_DMA_RX_DISABLEMATCH(uint inst, uint i) {
 #endif
 
 NHW_SIDEEFFECTS_TASKS(UARTE, NRF_UARTE_regs[inst]., FLUSHRX)
+#if NHW_UARTE_HAS_DMAEND
+NHW_SIDEEFFECTS_TASKS(UARTE, NRF_UARTE_regs[inst]., DMAEND)
+#endif
 
 #if (NHW_UARTE_HAS_UART)
 void nhw_UARTE_regw_sideeffects_TASKS_SUSPEND(unsigned int inst) {
@@ -1372,6 +1401,9 @@ NHW_UARTE_REGW_SIDEFFECTS_SUBSCRIBE(STARTTX, DMA.TX.START)
 NHW_UARTE_REGW_SIDEFFECTS_SUBSCRIBE(STOPTX, DMA.TX.STOP)
 #endif
 NHW_UARTE_REGW_SIDEFFECTS_SUBSCRIBE(FLUSHRX, FLUSHRX)
+#if NHW_UARTE_HAS_DMAEND
+NHW_UARTE_REGW_SIDEFFECTS_SUBSCRIBE(DMAEND, DMAEND)
+#endif
 #if NHW_UARTE_HAS_MATCH
 static void nhw_UARTE_TASK_nhw_UARTE_TASK_DMA_RX_ENABLEMATCH_wrap(void* param)
 {
