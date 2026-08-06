@@ -644,10 +644,21 @@ static void nhw_UARTE_RxDMA_start(int inst) {
 #if !NHW_UARTE_54NAMING
   u_el->RXD_PTR = NRF_UARTE_regs[inst].RXD.PTR;
   u_el->RXD_MAXCNT = NRF_UARTE_regs[inst].RXD.MAXCNT;
-#else
+#if defined(UARTE_DMA_RX_LIST_TYPE_ArrayList)
+  if (NRF_UARTE_regs[inst].DMA.RX.LIST == UARTE_DMA_RX_LIST_TYPE_ArrayList) {
+    NRF_UARTE_regs[inst].DMA.RX.PTR += NRF_UARTE_regs[inst].DMA.RX.MAXCNT;
+  }
+#endif
+#else /* NHW_UARTE_54NAMING */
   u_el->RXD_PTR = NRF_UARTE_regs[inst].DMA.RX.PTR;
   u_el->RXD_MAXCNT = NRF_UARTE_regs[inst].DMA.RX.MAXCNT;
+#if defined(UARTE_RXD_LIST_LIST_ArrayList)
+  if (NRF_UARTE_regs[inst].RXD.LIST == UARTE_RXD_LIST_LIST_ArrayList) {
+    NRF_UARTE_regs[inst].RXD.PTR += NRF_UARTE_regs[inst].RXD.MAXCNT;
+  }
 #endif
+#endif /* NHW_UARTE_54NAMING */
+
   u_el->RXD_AMOUNT = 0;
   u_el->rx_dma_status = DMAing;
 #if NHW_UARTE_HAS_MATCH
@@ -800,6 +811,29 @@ static void nHW_UARTE_Tx_DMA_byte(int inst, struct uarte_status *u_el)
   nhw_UART_Tx_queue_byte(inst, u_el, data);
 }
 
+static void nhw_UARTE_TxDMA_pre_start(struct uarte_status *u_el, int inst) {
+#if !(NHW_UARTE_54NAMING)
+  u_el->TXD_PTR = NRF_UARTE_regs[inst].TXD.PTR;
+  u_el->TXD_MAXCNT = NRF_UARTE_regs[inst].TXD.MAXCNT;
+#if defined(UARTE_DMA_TX_LIST_TYPE_ArrayList)
+  if (NRF_UARTE_regs[inst].DMA.TX.LIST == UARTE_DMA_TX_LIST_TYPE_ArrayList) {
+    NRF_UARTE_regs[inst].DMA.TX.PTR += NRF_UARTE_regs[inst].DMA.TX.MAXCNT;
+  }
+#endif
+#else /* NHW_UARTE_54NAMING */
+  u_el->TXD_PTR = NRF_UARTE_regs[inst].DMA.TX.PTR;
+  u_el->TXD_MAXCNT = NRF_UARTE_regs[inst].DMA.TX.MAXCNT;
+#if defined(UARTE_TXD_LIST_LIST_ArrayList)
+  if (NRF_UARTE_regs[inst].TXD.LIST == UARTE_TXD_LIST_LIST_ArrayList) {
+    NRF_UARTE_regs[inst].TXD.PTR += NRF_UARTE_regs[inst].TXD.MAXCNT;
+  }
+#endif
+#endif /* NHW_UARTE_54NAMING */
+  u_el->TXD_AMOUNT = 0;
+  u_el->tx_dma_status = DMAing;
+  nhw_UARTE_signal_EVENTS_TXSTARTED(inst); /* Instantaneously ready */
+}
+
 void nhw_UARTE_TASK_STARTTX(uint inst)
 {
   struct uarte_status *u_el = &nhw_uarte_st[inst];
@@ -827,16 +861,7 @@ void nhw_UARTE_TASK_STARTTX(uint inst)
   }
 
   if (uarte_enabled(inst)) {
-#if !(NHW_UARTE_54NAMING)
-    u_el->TXD_PTR = NRF_UARTE_regs[inst].TXD.PTR;
-    u_el->TXD_MAXCNT = NRF_UARTE_regs[inst].TXD.MAXCNT;
-#else
-    u_el->TXD_PTR = NRF_UARTE_regs[inst].DMA.TX.PTR;
-    u_el->TXD_MAXCNT = NRF_UARTE_regs[inst].DMA.TX.MAXCNT;
-#endif
-    u_el->TXD_AMOUNT = 0;
-    u_el->tx_dma_status = DMAing;
-    nhw_UARTE_signal_EVENTS_TXSTARTED(inst); /* Instantaneously ready */
+    nhw_UARTE_TxDMA_pre_start(u_el, inst);
     if (u_el->TXD_MAXCNT > 0) {
       if (u_el->tx_status == Tx_Idle) {
         nHW_UARTE_Tx_DMA_byte(inst, u_el);
