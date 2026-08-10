@@ -587,6 +587,7 @@ static void nhw_ufifo_backend_register_cmdline(void) {
                   "gracefully"
     },
     { .option = "uart_fifob_mdt",
+      .name = "time",
       .type = 'd',
       .call_when_found = uf_parse_mdt,
       .dest = (void *)&uf_mdt,
