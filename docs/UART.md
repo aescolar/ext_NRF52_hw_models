@@ -93,9 +93,10 @@ and have the same result with lower overhead, and no files created on disk.
 
 #### The PTY backend
 
-With this backend you can connect a UART to a Linux pseudoterminal. A new pseudoterminal will be
-created for each UART for which this backend is enabled.<br>
+With this backend you can connect a UART to a Linux pseudoterminal. By default a new pseudoterminal
+will be created for each UART for which this backend is enabled.<br>
 Check the command line options with `-help`.
 Between others you can select if a terminal should be automatically attached to each UART,
 if data should be held while RTS is high, if the simulation should be held until a terminal has been
 attached to the pty, and the Rx data polling period.
+You can also attach one of these UARTs to the process stdin/stdout.

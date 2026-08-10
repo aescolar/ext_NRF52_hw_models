@@ -13,6 +13,7 @@ extern "C"{
 int nhw_upty_open_ptty(const char *uart_name, const char *auto_attach_cmd,
                        bool do_auto_attach, bool wait_pts);
 void nhw_upty_wait_for_pty(int fd, uint64_t microsec);
+int nhw_upty_prepare_stdin(void);
 
 #ifdef __cplusplus
 }

@@ -211,3 +211,19 @@ void nhw_upty_wait_for_pty(int fd, uint64_t microsec) {
     (void)nanosleep(&tv, NULL);
   }
 }
+
+int nhw_upty_prepare_stdin(void) {
+  int flags;
+  int ret;
+
+  flags = fcntl(STDIN_FILENO, F_GETFL);
+  if (flags == -1) {
+    ERROR("Could not read STDIN status flags (%i)\n", errno);
+  }
+
+  ret = fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+  if (ret == -1) {
+    ERROR("Could not set STDIN flags (%i)\n", errno);
+  }
+  return flags;
+}

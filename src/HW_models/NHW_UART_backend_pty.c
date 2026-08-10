@@ -19,9 +19,20 @@
  * When the (own) RTS pin is raised (not ready to receive), and if the command line
  * respect_RTS is set, input data in the PTY will be held until RTS is lowered.
  * Otherwise, data will be fed right as soon as it is polled.
+ *
+ * When connecting a UART to stdin/out:
+ *  * The terminal line discipline won't be changed, so input won't reach this model until
+ *    ENTER is pressed, the terminal will echo the input, and all special characters will be
+ *    displayed (and also fed to the UART when enter is pressed). If you want a raw PTY
+ *    for interactive use, do not connect it to stdin/out.
+ *  * Note that other bsim traces will appear interleaved in stdout.
+ *    You can disable them with the command line verbosity level control.
  */
 
+#include <stdbool.h>
+#include <errno.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include "bs_types.h"
 #include "bs_tracing.h"
 #include "bs_oswrap.h"
@@ -41,9 +52,10 @@ static bs_time_t Timer_UPTY = TIME_NEVER;
 
 static bool wait_for_pty;
 static bs_time_t poll_period = 50000;
+static int stdin_flags; /* stdin fcntl flags before we modified them */
 
-struct upty_st_t {
-  bool enabled;
+static struct upty_st_t {
+  bool enabled; /* Enabled from command line */
   bool auto_attach;
   char *attach_cmd;
   bool respect_RTS;
@@ -57,6 +69,11 @@ struct upty_st_t {
   bool RTS;
 
   bool pty_connected;
+
+  bool wait_for_pty;
+
+  bool on_stdinout; /* This UART is connected to STDIN/OUT and not a PTY */
+  bool stdin_disconnected;
 } upty_st[NHW_UARTE_TOTAL_INST];
 
 static void nhw_upty_tx_byte(uint inst, uint16_t data);
@@ -65,6 +82,7 @@ static void nhw_upty_enable_notify(uint inst, uint8_t tx_enabled, uint8_t rx_ena
 static void nhw_upty_update_timer(void);
 
 static void nhw_upty_init(void) {
+  static bool stdinout_used;
   char *uart_names[NHW_UARTE_TOTAL_INST] = NHW_UARTE_NAMES;
 
   for (int i = 0; i < NHW_UARTE_TOTAL_INST; i++) {
@@ -73,11 +91,20 @@ static void nhw_upty_init(void) {
     u_el->out_fd = -1;
     u_el->in_fd = -1;
     u_el->Rx_timer = TIME_NEVER;
+    u_el->stdin_disconnected = false;
 
+    if (u_el->on_stdinout && stdinout_used) {
+      bs_trace_warning_line("Requested from command line to attach %s to stdin/out, but stdin/out "
+                            "is already taken by a previous UART. Ignoring it\n", uart_names[i]);
+      u_el->on_stdinout = false;
+    }
+    if (((u_el->attach_cmd != NULL) || (u_el->auto_attach)) && (u_el->on_stdinout)) {
+      bs_trace_warning_line("-uart%i_pty_attach & attach_cmd are ignored when -uart%i_pty_stdinout is set\n", i, i);
+    }
     if (u_el->attach_cmd != NULL) {
       u_el->auto_attach = true;
     }
-    if (u_el->auto_attach) {
+    if ((u_el->auto_attach) || (u_el->on_stdinout)) {
       u_el->enabled = true;
     }
     if (!u_el->enabled) {
@@ -87,12 +114,21 @@ static void nhw_upty_init(void) {
       u_el->attach_cmd = DEFAULT_CMD;
     }
 
+    u_el->wait_for_pty = wait_for_pty && !u_el->on_stdinout;
+
     //Connect to pty
     char uart_name[50];
     snprintf(uart_name, 50, "UART %i (%s)", i, uart_names[i]);
-    int pty_fd = nhw_upty_open_ptty(uart_name, u_el->attach_cmd, u_el->auto_attach, wait_for_pty);
-    u_el->in_fd = pty_fd;
-    u_el->out_fd = pty_fd;
+    if (u_el->on_stdinout) {
+      u_el->in_fd = STDIN_FILENO;
+      u_el->out_fd = STDOUT_FILENO;
+      stdinout_used = true;
+      stdin_flags = nhw_upty_prepare_stdin();
+    } else {
+      int pty_fd = nhw_upty_open_ptty(uart_name, u_el->attach_cmd, u_el->auto_attach, u_el->wait_for_pty);
+      u_el->in_fd = pty_fd;
+      u_el->out_fd = pty_fd;
+    }
 
     struct backend_if st;
     st.tx_byte_f = nhw_upty_tx_byte;
@@ -118,7 +154,7 @@ static void nhw_upty_tx_byte(uint inst, uint16_t data) {
     bs_trace_error_time_line("Programming error\n");
   }
 
-  if (wait_for_pty & (u_el->pty_connected == false)) {
+  if (u_el->wait_for_pty && (u_el->pty_connected == false)) {
     nhw_upty_wait_for_pty(u_el->out_fd, 100e3);
     u_el->pty_connected = true;
   }
@@ -140,7 +176,7 @@ static void nhw_upty_RTS_pin_toggle(uint inst, bool new_level) {
     return;
   }
   u_el->RTS = new_level;
-  if (u_el->RTS) { //Not ready to receive
+  if ((u_el->RTS) || (u_el->stdin_disconnected)) { //Not ready to receive, or nothing can be received
     u_el->Rx_timer = TIME_NEVER;
   } else {
     u_el->Rx_timer = nsi_hws_get_time() + nhw_uarte_one_byte_time(inst);
@@ -174,13 +210,18 @@ static void nhw_upty_check_for_input(uint inst, struct upty_st_t *u_el) {
   unsigned char byte;
   int ret;
 
-  if (wait_for_pty & (u_el->pty_connected == false)) {
+  if (u_el->wait_for_pty && (u_el->pty_connected == false)) {
     nhw_upty_wait_for_pty(u_el->in_fd, 100e3);
     u_el->pty_connected = true;
   }
 
   ret = read(u_el->in_fd, &byte, 1);
-  if (ret != -1) {
+
+  if ((u_el->on_stdinout) && (ret == 0)) {
+    /* Attempting to read > 0 but getting 0 characters back indicates we reached EOF in stdin */
+    u_el->stdin_disconnected = true;
+    u_el->Rx_timer = TIME_NEVER;
+  } else if (ret > 0) {
     if (!u_el->rx_on) {
       bs_trace_info_time(3, "UART%i: Received byte (0x%02X) while Rx is off => ignored\n", inst, byte);
     } else {
@@ -188,7 +229,14 @@ static void nhw_upty_check_for_input(uint inst, struct upty_st_t *u_el) {
     }
     u_el->Rx_timer += nhw_uarte_one_byte_time(inst);
   } else {
-    u_el->Rx_timer += poll_period;
+    if ((ret == -1) && (errno == EINTR)) {
+      return; /* We'll try again right away */
+    } else if ((ret == -1) && (u_el->on_stdinout) && (errno == EIO)) {
+      u_el->Rx_timer = TIME_NEVER; /* No terminal, or something is off, let's not try again */
+      u_el->stdin_disconnected = true;
+    } else { /* EAGAIN or something else*/
+      u_el->Rx_timer += poll_period;
+    }
   }
 }
 
@@ -210,13 +258,23 @@ static void nhw_upty_cleanup(void) {
   for (int i = 0; i < NHW_UARTE_TOTAL_INST; i++) {
     struct upty_st_t *u_el = &upty_st[i];
 
-    if (u_el->in_fd != -1) {
-      close(u_el->in_fd);
-      u_el->in_fd = -1;
+    if (!u_el->enabled) {
+      continue;
     }
-    if (u_el->out_fd != -1) {
-      close(u_el->out_fd);
-      u_el->out_fd = -1;
+
+    if (u_el->on_stdinout) {
+      if (stdin_flags != -1) {
+        (void)fcntl(STDIN_FILENO, F_SETFL, stdin_flags);
+      }
+    } else {
+      if (u_el->in_fd != -1) {
+        close(u_el->in_fd);
+        u_el->in_fd = -1;
+      }
+      if (u_el->out_fd != -1) {
+        close(u_el->out_fd);
+        u_el->out_fd = -1;
+      }
     }
   }
 }
@@ -234,7 +292,7 @@ static void parse_poll_period(char *argv, int offset) {
 }
 
 static void nhw_upty_backend_register_cmdline(void) {
-#define OPT_PER_UART 4
+#define OPT_PER_UART 5
   static bs_args_struct_t args[OPT_PER_UART*NHW_UARTE_TOTAL_INST + 1 /* End marker */];
   static char descr_connect[] = "Connect this UART to a pseudoterminal";
   static char descr_auto[] = "Automatically attach to the UART terminal (implies uartx_pty)";
@@ -242,7 +300,11 @@ static void nhw_upty_backend_register_cmdline(void) {
                             "uartx_pty_attach), by default: '" DEFAULT_CMD "'";
   static char descr_ignoreRTS[] = "Hold feeding data from the PTY if RTS is high (note: "
                                   "If HW flow control is disabled the UART never lowers RTS)";
-#define OPTION_LEN (4 + 2 + 15 + 1)
+  static char descr_stdinout[] = "Connect this UART to stdin/out instead of a new PTY. "
+                                 "(Can only be set for one UART). Note terminal line discipline "
+                                 "is not changed (i.e. bytes do not reach the UART until Enter, and "
+                                 "the tty echoes them)";
+#define OPTION_LEN (4 + 2 + 16 + 1) /* Longest option _pty_respect_RTS */
   static char options[NHW_UARTE_TOTAL_INST][OPT_PER_UART][OPTION_LEN];
   static char opt_cmd[]= "cmd";
 
@@ -251,6 +313,7 @@ static void nhw_upty_backend_register_cmdline(void) {
     snprintf(options[i][1], OPTION_LEN, "uart%i_pty_attach", i);
     snprintf(options[i][2], OPTION_LEN, "uart%i_pty_attach_cmd", i);
     snprintf(options[i][3], OPTION_LEN, "uart%i_pty_respect_RTS", i);
+    snprintf(options[i][4], OPTION_LEN, "uart%i_pty_stdinout", i);
 
     args[OPT_PER_UART*i].option = options[i][0];
     args[OPT_PER_UART*i].is_switch = true;
@@ -275,6 +338,12 @@ static void nhw_upty_backend_register_cmdline(void) {
     args[OPT_PER_UART*i + 3].type = 'b';
     args[OPT_PER_UART*i + 3].dest = &upty_st[i].respect_RTS;
     args[OPT_PER_UART*i + 3].descript = descr_ignoreRTS;
+
+    args[OPT_PER_UART*i + 4].option = options[i][4];
+    args[OPT_PER_UART*i + 4].is_switch = true;
+    args[OPT_PER_UART*i + 4].type = 'b';
+    args[OPT_PER_UART*i + 4].dest = &upty_st[i].on_stdinout;
+    args[OPT_PER_UART*i + 4].descript = descr_stdinout;
   }
 
   bs_add_extra_dynargs(args);
