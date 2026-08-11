@@ -66,7 +66,7 @@
 #define NHW_GPIO_MAX_PINS_PER_PORT 32
 #define NHW_GPIO_NBR_PINS {32, 10} /* Number of IOs per port */
 #define NHW_GPIO_PARTNER_GPIOTE {0, 0} /* GPIOTE nbr to which the DETECT signal(s) will be sent */
-#define NHW_GPIO_HAS_PIN_SENSE {1} /* Per instance, does it have pin sense/detect mechanism */
+#define NHW_GPIO_HAS_PIN_SENSE {1, 1} /* Per instance, does it have pin sense/detect mechanism */
 
 #define NHW_GPIOTE_TOTAL_INST 1
 #define NHW_GPIOTE_0 0
