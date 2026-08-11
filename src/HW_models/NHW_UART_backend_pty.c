@@ -52,7 +52,7 @@ static bs_time_t Timer_UPTY = TIME_NEVER;
 
 static bool wait_for_pty;
 static bs_time_t poll_period = 50000;
-static int stdin_flags; /* stdin fcntl flags before we modified them */
+static int stdin_flags = -1; /* stdin fcntl flags before we modified them */
 
 static struct upty_st_t {
   bool enabled; /* Enabled from command line */
