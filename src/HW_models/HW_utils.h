@@ -7,12 +7,14 @@
 #define _NRF_HW_MODEL_UTILS_H
 
 #include <stddef.h>
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C"{
 #endif
 
 void hwu_reverse_byte_order(const unsigned char *in_data, unsigned char *out_data, size_t len);
+int hwu_readline(char *s, int size, FILE *stream);
 
 #ifdef __cplusplus
 }

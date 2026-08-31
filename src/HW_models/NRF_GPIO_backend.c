@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include "HW_utils.h"
 #include "NHW_common_types.h"
 #include "NHW_config.h"
 #include "NRF_GPIO.h"
@@ -163,49 +164,6 @@ void nrf_gpio_backend_write_output_change(unsigned int port, unsigned int n, boo
 }
 
 /*
- * Read a line from a file into a buffer (s), while
- * skipping duplicate spaces (unless they are quoted), comments (#...),
- * and empty lines
- * The string will be null terminated (even if nothing is copied in)
- *
- * Return: The number of characters copied into s (apart from the termination 0 byte)
- */
-static int readline(char *s, int size, FILE *stream)
-{
-	int c = 0, i=0;
-	bool was_a_space = true;
-	bool in_a_string = false;
-
-	while ((i == 0) && (c != EOF)) {
-		while ((i < size - 1) && ((c=getc(stream)) != EOF) && c!='\n') {
-			if (isspace(c) && (!in_a_string)) {
-				if (was_a_space) {
-					continue;
-				}
-				was_a_space = true;
-			} else {
-				was_a_space = false;
-			}
-			if (c=='"') {
-				in_a_string = !in_a_string;
-			}
-			if (c == '#') {
-				bs_skipline(stream);
-				break;
-			}
-			s[i++] =c;
-		}
-	}
-	s[i] = 0;
-
-	if (i >= size - 1) {
-		bs_trace_warning_line("Truncated line while reading from file after %i chars\n",
-				      size-1);
-	}
-	return i;
-}
-
-/*
  * Register an external GPIO output -> input short-circuit
  * Normally this is automatically called when a gpio configuration file
  * defines a short-circuit, but it can also be called from test code.
@@ -305,7 +263,7 @@ static void nrf_gpio_load_config(void)
 	int rc;
 
 	while (true) {
-		rc = readline(line_buf, MAXLINESIZE, fileptr);
+		rc = hwu_readline(line_buf, MAXLINESIZE, fileptr);
 		if (rc == 0) {
 			break;
 		}
@@ -388,9 +346,9 @@ static void nrf_gpio_init_input_file(void)
 
 	gpio_input_file_st.input_file_ptr = bs_fopen(gpio_in_file_path, "r");
 
-	read = readline(line_buf, MAXLINESIZE, gpio_input_file_st.input_file_ptr);
+	read = hwu_readline(line_buf, MAXLINESIZE, gpio_input_file_st.input_file_ptr);
 	if (strncmp(line_buf,"time",4) == 0) { /* Let's skip a possible csv header line */
-		read = readline(line_buf, MAXLINESIZE, gpio_input_file_st.input_file_ptr);
+		read = hwu_readline(line_buf, MAXLINESIZE, gpio_input_file_st.input_file_ptr);
 	}
 	if (read == 0) {
 		bs_trace_warning_line("%s: Input file %s seems empty\n",
@@ -410,7 +368,7 @@ static void nrf_gpio_input_event_triggered(void)
 	nrf_gpio_eval_input(gpio_input_file_st.port, gpio_input_file_st.pin,
 			    gpio_input_file_st.level);
 
-	(void)readline(line_buf, MAXLINESIZE, gpio_input_file_st.input_file_ptr);
+	(void)hwu_readline(line_buf, MAXLINESIZE, gpio_input_file_st.input_file_ptr);
 
 	nrf_gpio_input_process_next_time(line_buf);
 }
