@@ -201,11 +201,11 @@ bool nrf_gpio_get_pin_level(unsigned int port, unsigned int n) {
 }
 
 #define CHECK_PIN_EXISTS(port, n, dir) \
-		if (port >= NHW_GPIO_TOTAL_INST || (uint)n >= (uint)gpio_st[port].nbr_pins) { \
-			bs_trace_error_time_line("%s: Error, attempted to toggle "dir" for nonexistent " \
-					"GPIO port %i, pin %i\n", \
-					__func__, port, n); \
-		}
+  if (port >= NHW_GPIO_TOTAL_INST || (uint)n >= (uint)gpio_st[port].nbr_pins) { \
+    bs_trace_error_time_line("%s: Error, attempted to toggle "dir" for nonexistent " \
+       "GPIO port %i, pin %i\n", \
+       __func__, port, n); \
+  }
 
 static inline uint32_t get_enabled_inputs(unsigned int port){
   struct gpio_status *st = &gpio_st[port];
@@ -216,36 +216,36 @@ static inline uint32_t get_enabled_inputs(unsigned int port){
 static inline uint32_t get_dir(unsigned int port){
   struct gpio_status *st = &gpio_st[port];
   return (~st->dir_override & NRF_GPIO_regs[port].DIR)
-      | (st->dir_override & st->dir_override_set);
+         | (st->dir_override & st->dir_override_set);
 }
 
 /*
  * Function with which another peripheral can claim configuration control of a pin.
  *
  * Inputs:
- *	* port: Which GPIO port
- *	* n : which pin in that GPIO port
- *	* override_output:
- *		* -1 : Don't change
- *		*  0 : Leave for GPIO control (GPIO OUT register sets the output value)
- *		*  1 : Take external control of pin output value (peripheral sets the output value
- *		       with nrf_gpio_peri_change_output() )
- *	* override_input:
- *		* -1 : Don't change
- *		*  0 : Leave input to be controlled by the GPIO module
- *		*  2 : Take external control of input, and disconnect
- *		*  3 : Take external control of input, and connect
- *	* override_dir:
- *		* -1 : Don't change
- *		*  0 : Leave DIR to be controlled by the GPIO module
- *		*  2 : Take external control of DIR, and disconnect (not driving output)
- *		*  3 : Take external control of DIR, and connect (driving output)
- *      * fptr: Function to be called whenever that input toggles (if enabled).
- *              Set to NULL if not needed.
- *      * new_level:
- *              * -1: Don't change
- *              *  0: low
- *              *  1: high
+ *  * port: Which GPIO port
+ *  * n : which pin in that GPIO port
+ *  * override_output:
+ *    * -1 : Don't change
+ *    *  0 : Leave for GPIO control (GPIO OUT register sets the output value)
+ *    *  1 : Take external control of pin output value (peripheral sets the output value
+ *           with nrf_gpio_peri_change_output() )
+ *  * override_input:
+ *    * -1 : Don't change
+ *    *  0 : Leave input to be controlled by the GPIO module
+ *    *  2 : Take external control of input, and disconnect
+ *    *  3 : Take external control of input, and connect
+ *  * override_dir:
+ *    * -1 : Don't change
+ *    *  0 : Leave DIR to be controlled by the GPIO module
+ *    *  2 : Take external control of DIR, and disconnect (not driving output)
+ *    *  3 : Take external control of DIR, and connect (driving output)
+ *  * fptr: Function to be called whenever that input toggles (if enabled).
+ *          Set to NULL if not needed.
+ *  * new_level:
+ *    * -1: Don't change
+ *    *  0: low
+ *    *  1: high
  */
 void nrf_gpio_peri_pin_control(unsigned int port, unsigned int n,
     int override_output, int override_input, int override_dir,
@@ -462,7 +462,7 @@ void nrf_gpio_eval_input(unsigned int port, unsigned int n, bool value)
         "GPIO port %i, pin %i\n",
         __func__, port, n);
     return;
-  }			/* LCOV_EXCL_STOP */
+  } /* LCOV_EXCL_STOP */
 
   int diff = ((gpio_st[port].IO_level >> n) & 0x1) ^ (uint32_t)value;
 
@@ -499,7 +499,7 @@ static void nrf_gpio_eval_outputs(unsigned int port)
   uint32_t dir = get_dir(port); /* Which pins are driven by output */
 
   uint32_t out = (~st->out_override & NRF_GPIO_regs[port].OUT)
-			    | (st->out_override & st->external_OUT);
+                | (st->out_override & st->external_OUT);
 
   uint32_t new_output = dir & out;
 
@@ -635,22 +635,22 @@ void nrf_gpio_regw_sideeffects_PIN_CNF(unsigned int port, unsigned int n) {
   }
 
   /* Note: DRIVE and PULL are not yet used in this model
-	int pull = (NRF_GPIO_regs[port].PIN_CNF[n] & GPIO_PIN_CNF_PULL_Msk)
-					>> GPIO_PIN_CNF_PULL_Pos;
+    int pull = (NRF_GPIO_regs[port].PIN_CNF[n] & GPIO_PIN_CNF_PULL_Msk)
+               >> GPIO_PIN_CNF_PULL_Pos;
 
-	int drive = (NRF_GPIO_regs[port].PIN_CNF[n] & GPIO_PIN_CNF_DRIVE_Msk)
-					>> GPIO_PIN_CNF_DRIVE_Pos;
+    int drive = (NRF_GPIO_regs[port].PIN_CNF[n] & GPIO_PIN_CNF_DRIVE_Msk)
+               >> GPIO_PIN_CNF_DRIVE_Pos;
    */
 
   uint input = (NRF_GPIO_regs[port].PIN_CNF[n] & GPIO_PIN_CNF_INPUT_Msk)
-			    >> GPIO_PIN_CNF_INPUT_Pos;
+               >> GPIO_PIN_CNF_INPUT_Pos;
   if (input != ((st->INPUT_mask >> n) & 0x1)) {
     st->INPUT_mask ^= 1 << n;
     need_input_eval = true;
   }
 
   int sense = (NRF_GPIO_regs[port].PIN_CNF[n] & GPIO_PIN_CNF_SENSE_Msk)
-			    >> GPIO_PIN_CNF_SENSE_Pos;
+              >> GPIO_PIN_CNF_SENSE_Pos;
   if (((sense >> 1) & 0x1) != ((st->SENSE_mask >> n) & 0x1)) {
     st->SENSE_mask ^= 1 << n;
     need_sense_eval = true;
