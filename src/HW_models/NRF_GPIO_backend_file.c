@@ -8,6 +8,7 @@
 /*
  * File-input backend for GPIO pins.
  * Drives GPIO inputs from stimuli files in CSV format.
+ * Multiple instances can be configured, each reading from a separate file.
  *
  * Check docs/GPIO.md for more info.
  */
@@ -28,24 +29,69 @@
 
 #define MAXLINESIZE 2048
 
-static bs_time_t Timer_GPIO_input = TIME_NEVER;
-static char *gpio_in_file_path; /* Possible file for input stimuli */
+static bs_time_t Timer_gbfile = TIME_NEVER;
+static unsigned int gbf_next_i;
 
 /* GPIO input status */
-static struct {
-  FILE *input_file_ptr;
+struct gif_st {
+  char *path;
+  FILE *fp;
+  bs_time_t timer;
   /* Next event port.pin & level: */
   unsigned int port;
   unsigned int pin;
   bool level; /* true: high; false: low*/
-} gpio_input_file_st;
+};
+
+static struct gif_st *gbfile_p;
+static int n_gbfile;
+
+static void nhw_gbfile_init(void *n);
+
+static const struct nrf_gpio_backend_if nhw_gbfile_callbacks = {
+  .init = nhw_gbfile_init,
+};
+
+static void nhw_gpio_filebackend_instantiate(char *path) {
+  int n = n_gbfile;
+  size_t path_len = strlen(path) + 1;
+
+  n_gbfile++;
+  gbfile_p = bs_realloc(gbfile_p, n_gbfile*sizeof(struct gif_st));
+
+  gbfile_p[n].fp = NULL;
+  gbfile_p[n].path = bs_malloc(path_len);
+  memcpy(gbfile_p[n].path, path, path_len);
+  gbfile_p[n].timer = TIME_NEVER;
+
+  nrf_gpio_backend_register(&nhw_gbfile_callbacks, (void *)(uintptr_t)n);
+  bs_trace_info(5, "Instantiated GPIO input file backend[%i] with path %s\n",
+                n, path);
+}
+
+static void nhw_gbfile_find_next(void) {
+  Timer_gbfile = gbfile_p[0].timer;
+  gbf_next_i = 0;
+  for (int i = 1; i < n_gbfile; i++) {
+    if (gbfile_p[i].timer < Timer_gbfile) {
+      Timer_gbfile = gbfile_p[i].timer;
+      gbf_next_i = i;
+    }
+  }
+  nsi_hws_find_next_event();
+}
+
+int nhw_gpio_filebackend_process_config(char *path) {
+  nhw_gpio_filebackend_instantiate(path);
+  return 0;
+}
 
 /*
  * Process next (valid) line in the input stimuly file, and program
  * the next input update event
  * (or close down the file if it ended or is corrupted)
  */
-static void nrf_gpio_input_process_next_time(char *buf)
+static void nhw_gbfile_process_next_time(struct gif_st *st, char *buf)
 {
   bs_time_t time;
   unsigned int port;
@@ -59,12 +105,12 @@ static void nrf_gpio_input_process_next_time(char *buf)
         "Expected \""
         "<uin64_t time>,<uint port>,<uint pin>,<uint level>\". "
         "Line was:%s\n",
-        gpio_in_file_path, buf);
+        st->path, buf);
   }
   if (n < 4) { /* End of file, or corrupted => we are done */
-    fclose(gpio_input_file_st.input_file_ptr);
-    gpio_input_file_st.input_file_ptr = NULL;
-    Timer_GPIO_input = TIME_NEVER;
+    fclose(st->fp);
+    st->fp = NULL;
+    st->timer = TIME_NEVER;
   } else {
     if (time < nsi_hws_get_time()) {
       bs_trace_error_time_line("%s: GPIO input file went back in time(%s)\n",
@@ -86,73 +132,85 @@ static void nrf_gpio_input_process_next_time(char *buf)
           "(%u) (%s)\n",
           __func__, level, buf);
     }
-    gpio_input_file_st.level = level;
-    gpio_input_file_st.pin = pin;
-    gpio_input_file_st.port = port;
-    Timer_GPIO_input = time;
+    st->level = level;
+    st->pin = pin;
+    st->port = port;
+    st->timer = time;
   }
 
-  nsi_hws_find_next_event();
+  nhw_gbfile_find_next();
 }
 
 /*
  * Initialize GPIO input from file, and queue next input event change
  */
-static void nrf_gpio_init_input_file(void)
+static void nhw_gbfile_init(void *n)
 {
-  gpio_input_file_st.input_file_ptr = NULL;
-
-  if (gpio_in_file_path == NULL) {
-    return;
-  }
-
+  struct gif_st *st = &gbfile_p[(uintptr_t)n];
   char line_buf[MAXLINESIZE];
   int read;
 
-  gpio_input_file_st.input_file_ptr = bs_fopen(gpio_in_file_path, "r");
+  st->fp = bs_fopen(st->path, "r");
 
-  read = hwu_readline(line_buf, MAXLINESIZE, gpio_input_file_st.input_file_ptr);
+  read = hwu_readline(line_buf, MAXLINESIZE, st->fp);
   if (strncmp(line_buf,"time",4) == 0) { /* Let's skip a possible csv header line */
-    read = hwu_readline(line_buf, MAXLINESIZE, gpio_input_file_st.input_file_ptr);
+    read = hwu_readline(line_buf, MAXLINESIZE, st->fp);
   }
   if (read == 0) {
     bs_trace_warning_line("%s: Input file %s seems empty\n",
-        __func__, gpio_in_file_path);
+        __func__, st->path);
   }
 
-  nrf_gpio_input_process_next_time(line_buf);
+  nhw_gbfile_process_next_time(st, line_buf);
 }
-
-NSI_TASK(nrf_gpio_init_input_file, HW_INIT, 101); /* After nrf_gpio_init() */
 
 /*
  * Event timer handler for the GPIO input
  */
-static void nrf_gpio_input_event_triggered(void)
+static void nhw_gbfile_input_event_triggered(void)
 {
+  struct gif_st *st = (struct gif_st *)&gbfile_p[gbf_next_i];
   char line_buf[MAXLINESIZE];
 
-  nrf_gpio_eval_input(gpio_input_file_st.port, gpio_input_file_st.pin,
-      gpio_input_file_st.level);
+  nrf_gpio_eval_input(st->port, st->pin, st->level);
 
-  (void)hwu_readline(line_buf, MAXLINESIZE, gpio_input_file_st.input_file_ptr);
+  (void)hwu_readline(line_buf, MAXLINESIZE, st->fp);
 
-  nrf_gpio_input_process_next_time(line_buf);
+  nhw_gbfile_process_next_time(st, line_buf);
 }
 
-NSI_HW_EVENT(Timer_GPIO_input, nrf_gpio_input_event_triggered, 50);
+NSI_HW_EVENT(Timer_gbfile, nhw_gbfile_input_event_triggered, 50);
 
-static void nrf_gpio_input_file_backend_cleaup(void)
+static void nhw_gbfile_cleaup(void)
 {
-  if (gpio_input_file_st.input_file_ptr != NULL) {
-    fclose(gpio_input_file_st.input_file_ptr);
-    gpio_input_file_st.input_file_ptr = NULL;
+  if (gbfile_p == NULL) {
+    return;
   }
+  for (int i = 0; i < n_gbfile; i++) {
+    if (gbfile_p[i].fp) {
+      fclose(gbfile_p[i].fp);
+      gbfile_p[i].fp = NULL;
+    }
+    if (gbfile_p[i].path) {
+      free(gbfile_p[i].path);
+      gbfile_p[i].path = NULL;
+    }
+  }
+  free(gbfile_p);
+  gbfile_p = NULL;
 }
 
-NSI_TASK(nrf_gpio_input_file_backend_cleaup, ON_EXIT_PRE, 100);
+NSI_TASK(nhw_gbfile_cleaup, ON_EXIT_PRE, 100);
 
-static void nrf_gpio_input_file_register_cmd_args(void) {
+static char *gpio_in_file_path; /* cmd line path being parsed */
+
+static void nhw_gbfile_cmd_found(char *argv, int offset) {
+  (void)argv;
+  (void)offset;
+  nhw_gpio_filebackend_instantiate(gpio_in_file_path);
+}
+
+static void nhw_gbfile_register_cmd_args(void) {
 
   static bs_args_struct_t args_struct_toadd[] = {
       {
@@ -160,6 +218,7 @@ static void nrf_gpio_input_file_register_cmd_args(void) {
           .name="path",
           .type='s',
           .dest=(void *)&gpio_in_file_path,
+          .call_when_found=nhw_gbfile_cmd_found,
           .descript="Optional path to a file containing GPIOs inputs activity",
       },
       ARG_TABLE_ENDMARKER
@@ -168,4 +227,4 @@ static void nrf_gpio_input_file_register_cmd_args(void) {
   bs_add_extra_dynargs(args_struct_toadd);
 }
 
-NSI_TASK(nrf_gpio_input_file_register_cmd_args, PRE_BOOT_1, 100);
+NSI_TASK(nhw_gbfile_register_cmd_args, PRE_BOOT_1, 100);

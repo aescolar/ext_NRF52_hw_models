@@ -49,6 +49,13 @@ struct nrf_gpio_backend_if {
  */
 void nrf_gpio_backend_register(const struct nrf_gpio_backend_if *backend_callbacks, void *st);
 
+
+/*
+ * Interface between the GPIO file backend and the GPIO_backend component
+ */
+
+int nhw_gpio_filebackend_process_config(char *path);
+
 #ifdef __cplusplus
 }
 #endif

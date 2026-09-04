@@ -217,44 +217,51 @@ void nrf_gpio_backend_register_short(uint8_t Port_out, uint8_t Pin_out,
   shorts[Port_out][Pin_out][i].pin  = Pin_in;
 }
 
-static int process_config_line(char *s)
-{
-  unsigned long X,x,Y,y;
+static int process_config_short(char *buf, char *line) {
   char *endp;
-  char *buf = s;
-  const char error_msg[] = "%s: Corrupted GPIO configuration file, the valid format is "
-      "\"shortcut X.x Y.y\"\nLine was:%s\n";
+  unsigned long X,x,Y,y;
+  const char error_msg[] = "%s: Corrupted GPIO configuration file short line."
+      "Valid format is \"shortcut X.x Y.y\". Check docs/GPIO.md\n"
+      "Line was:%s\n";
 
-  if (strncmp(s, "short", 5) == 0) {
-    buf += 5;
-  } else if (strncmp(s, "s", 1) == 0) {
-    buf += 1;
-  } else {
-    bs_trace_error_line("%s: Only the command short (or \"s\") is understood at this "
-        "point, Line read \"%s\" instead\n", __func__, s);
-  }
   X = strtoul(buf, &endp, 0);
   if ((endp == buf) || (*endp!='.')) {
-    bs_trace_error_line(error_msg, __func__, s);
+    bs_trace_error_line(error_msg, __func__, line);
   }
   buf = endp + 1;
   x = strtoul(buf, &endp, 0);
   if ((endp == buf) || (*endp!=' ')) {
-    bs_trace_error_line(error_msg, __func__, s);
+    bs_trace_error_line(error_msg, __func__, line);
   }
   buf = endp + 1;
   Y = strtoul(buf, &endp, 0);
   if ((endp == buf) || (*endp!='.')) {
-    bs_trace_error_line(error_msg, __func__, s);
+    bs_trace_error_line(error_msg, __func__, line);
   }
   buf = endp + 1;
   y = strtoul(buf, &endp, 0);
   if (endp == buf) {
-    bs_trace_error_line(error_msg, __func__, s);
+    bs_trace_error_line(error_msg, __func__, line);
   }
   bs_trace_info_time(4, "Short-circuiting GPIO port %li pin %li to GPIO port %li pin %li\n",
       X,x,Y,y);
   nrf_gpio_backend_register_short(X, x, Y, y);
+  return 0;
+}
+
+static int process_config_line(char *line)
+{
+  if (strncmp(line, "input_file ", 11) == 0) {
+    return nhw_gpio_filebackend_process_config(line + 11);
+  } else if (strncmp(line, "short", 5) == 0) {
+    return process_config_short(line + 5, line);
+  } else if (strncmp(line, "s", 1) == 0) {
+    return process_config_short(line + 1, line);
+  } else {
+    bs_trace_error_line("%s: Configuration file command not understood at this point, "
+        "Line was \"%s\"\n", __func__, line);
+  }
+
   return 0;
 }
 

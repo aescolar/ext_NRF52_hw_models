@@ -29,8 +29,12 @@ Inputs can be driven in 3 different ways:
 The input file backend can be used to drive GPIOs with levels present in input files.
 
 These input files follow the stimuli format described below.
-This backend can be enabled by passing `-gpio_in_file=<path>`
-to the executable from the command line.
+Multiple instances of this backend can be enabled by either passing `-gpio_in_file=<path>`
+to the executable from the command line, or by adding in the configuration file an
+`input_file <path>` line as described below.
+Each time this parameter is passed another backend will be instantiated with that new file.
+
+You can configure as many input files to be used as necessary.
 
 ### Output log file:
 
@@ -92,7 +96,8 @@ Where pin 0 in port 0, is toggled at boot, 200microseconds, 600microseconds, 800
 
 ### Configuration file format
 
-The configuration file can configure short-circuits.
+The configuration file can configure short-circuits, as well as instantiate
+input file backend instances.
 
 **Short-circuits** (`short` / `s`):
 
@@ -126,6 +131,15 @@ short 1.0 0.2
 to short pin 0 from port 1 to pin 2 from port 2.
 
 Note that both ports and pins are numbered from 0.
+
+**Input file backend instances** (`input_file`):
+
+Adding a line containing:
+
+`input_file <path>`
+
+Adds a new file-input backend instance reading from `<path>`.
+You can add as many of these as desired.
 
 ### Comments in input files
 
