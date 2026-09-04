@@ -14,30 +14,30 @@
  * Check docs/GPIO.md for more info.
  */
 
-#include <stdlib.h>
 #include <ctype.h>
+#include <stdlib.h>
 #include <string.h>
+#include "bs_cmd_line.h"
+#include "bs_dynargs.h"
+#include "bs_oswrap.h"
+#include "bs_types.h"
+#include "bs_tracing.h"
 #include "HW_utils.h"
 #include "NHW_common_types.h"
 #include "NHW_config.h"
 #include "NRF_GPIO.h"
-#include "bs_types.h"
 #include "nsi_hw_scheduler.h"
-#include "bs_tracing.h"
-#include "bs_oswrap.h"
-#include "bs_cmd_line.h"
-#include "bs_dynargs.h"
 #include "nsi_hws_models_if.h"
 #include "nsi_tasks.h"
 
-static bs_time_t Timer_GPIO_input = TIME_NEVER;
-
-static char *gpio_in_file_path = NULL; /* Possible file for input stimuli */
-static char *gpio_out_file_path = NULL; /* Possible file for dumping output toggles */
-static char *gpio_conf_file_path = NULL; /* Possible file for configuration (short-circuits) */
-
 #define MAXLINESIZE 2048
 #define MAX_SHORTS 8
+
+static bs_time_t Timer_GPIO_input = TIME_NEVER;
+
+static char *gpio_in_file_path; /* Possible file for input stimuli */
+static char *gpio_out_file_path; /* Possible file for dumping output toggles */
+static char *gpio_conf_file_path; /* Possible file for configuration (short-circuits) */
 
 /* Table keeping all configured short-circuits */
 static struct {
@@ -49,7 +49,7 @@ static FILE *output_file_ptr; /* File pointer for gpio_out_file_path */
 
 /* GPIO input status */
 static struct {
-  FILE *input_file_ptr; /* File pointer for gpio_out_file_path */
+  FILE *input_file_ptr;
   /* Next event port.pin & level: */
   unsigned int port;
   unsigned int pin;
@@ -91,7 +91,7 @@ static void nrf_gpio_backend_cleaup(void)
 NSI_TASK(nrf_gpio_backend_cleaup, ON_EXIT_PRE, 100);
 
 
-static void nrf_gpio_register_cmd_args(void){
+static void nrf_gpio_register_cmd_args(void) {
 
   static bs_args_struct_t args_struct_toadd[] = {
       {
@@ -128,8 +128,7 @@ NSI_TASK(nrf_gpio_register_cmd_args, PRE_BOOT_1, 100);
  */
 void nrf_gpio_backend_short_propagate(unsigned int port, unsigned int n, bool value)
 {
-  int i;
-  for (i = 0 ; i < MAX_SHORTS; i++){
+  for (int i = 0; i < MAX_SHORTS; i++) {
     if (shorts[port][n][i].port == UINT8_MAX) {
       break;
     }
@@ -157,7 +156,7 @@ static void nrf_gpio_init_output_file(void)
  */
 void nrf_gpio_backend_write_output_change(unsigned int port, unsigned int n, bool value)
 {
-  if (output_file_ptr != NULL){
+  if (output_file_ptr != NULL) {
     fprintf(output_file_ptr, "%"PRItime",%u,%u,%u\n",
         nsi_hws_get_time(), port, n, value);
   }
@@ -174,7 +173,7 @@ void nrf_gpio_backend_register_short(uint8_t Port_out, uint8_t Pin_out,
   int i;
   unsigned int max_pins;
 
-  for (i = 0 ; i < MAX_SHORTS; i++) {
+  for (i = 0; i < MAX_SHORTS; i++) {
     if (shorts[Port_out][Pin_out][i].port == UINT8_MAX)
       break;
   }
@@ -216,9 +215,9 @@ static int process_config_line(char *s)
   const char error_msg[] = "%s: Corrupted GPIO configuration file, the valid format is "
       "\"shortcut X.x Y.y\"\nLine was:%s\n";
 
-  if (strncmp(s, "short", 5) == 0){
+  if (strncmp(s, "short", 5) == 0) {
     buf += 5;
-  } else if (strncmp(s, "s", 1) == 0){
+  } else if (strncmp(s, "s", 1) == 0) {
     buf += 1;
   } else {
     bs_trace_error_line("%s: Only the command short (or \"s\") is understood at this "
@@ -230,7 +229,7 @@ static int process_config_line(char *s)
   }
   buf = endp + 1;
   x = strtoul(buf, &endp, 0);
-  if ((endp == buf) || (*endp!=' ')){
+  if ((endp == buf) || (*endp!=' ')) {
     bs_trace_error_line(error_msg, __func__, s);
   }
   buf = endp + 1;

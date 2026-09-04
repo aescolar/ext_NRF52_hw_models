@@ -207,13 +207,13 @@ bool nrf_gpio_get_pin_level(unsigned int port, unsigned int n) {
        __func__, port, n); \
   }
 
-static inline uint32_t get_enabled_inputs(unsigned int port){
+static inline uint32_t get_enabled_inputs(unsigned int port) {
   struct gpio_status *st = &gpio_st[port];
   return (~st->input_override & ~st->INPUT_mask)
       | (st->input_override & st->input_override_connected);
 }
 
-static inline uint32_t get_dir(unsigned int port){
+static inline uint32_t get_dir(unsigned int port) {
   struct gpio_status *st = &gpio_st[port];
   return (~st->dir_override & NRF_GPIO_regs[port].DIR)
          | (st->dir_override & st->dir_override_set);
@@ -333,7 +333,8 @@ void nrf_gpio_peri_change_output(unsigned int port, unsigned int n, bool value)
   nrf_gpio_eval_outputs(port);
 }
 
-static void nrf_gpio_update_detect_signal(unsigned int port) {
+static void nrf_gpio_update_detect_signal(unsigned int port)
+{
   struct gpio_status *st = &gpio_st[port];
 
   if (NRF_GPIO_regs[port].DETECTMODE == 0){ //gpio.detect signal from not latched detect
@@ -354,7 +355,8 @@ static void nrf_gpio_update_detect_signal(unsigned int port) {
 /*
  * Evaluate sense output (after a change of input or configuration)
  */
-static void nrf_gpio_eval_sense(unsigned int port){
+static void nrf_gpio_eval_sense(unsigned int port)
+{
   struct gpio_status *st = &gpio_st[port];
 
   if (!st->has_sense) {
@@ -390,7 +392,7 @@ static void nrf_gpio_eval_sense(unsigned int port){
  *
  * input: port: The GPIO instance number
  */
-bool nrf_gpio_get_detect_level(unsigned int port){
+bool nrf_gpio_get_detect_level(unsigned int port) {
   return gpio_st[port].DETECT_signal;
 }
 
@@ -522,7 +524,6 @@ static void nrf_gpio_eval_outputs(unsigned int port)
   /* Inputs may be connected to pins driven by outputs, let's check */
   nrf_gpio_eval_inputs(port);
 }
-
 
 /*
  * Register write side-effecting functions:
