@@ -16,7 +16,7 @@ extern "C"{
 
 void nrf_gpio_backend_init(void);
 void nrf_gpio_backend_short_propagate(unsigned int port, unsigned int n, bool value);
-void nrf_gpio_backend_write_output_change(unsigned int port, unsigned int n, bool value);
+void nrf_gpio_backend_change_output(unsigned int port, unsigned int n, bool value);
 
 void nrf_gpio_backend_register_short(uint8_t X, uint8_t x, uint8_t Y, uint8_t y);
 
