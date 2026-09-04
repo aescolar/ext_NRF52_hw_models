@@ -14,11 +14,40 @@
 extern "C"{
 #endif
 
+/*
+ * Overall GPIO_backend component interface towards the top of the GPIO HW model
+ */
 void nrf_gpio_backend_init(void);
 void nrf_gpio_backend_short_propagate(unsigned int port, unsigned int n, bool value);
 void nrf_gpio_backend_change_output(unsigned int port, unsigned int n, bool value);
 
 void nrf_gpio_backend_register_short(uint8_t X, uint8_t x, uint8_t Y, uint8_t y);
+
+/*
+ * Interface between individual backends and the overall GPIO_backend component
+ */
+
+/*
+ * Callback interface for the GPIO backends.
+ * Note backends are not required to register any one of these,
+ * or at all if they do not need any of these callbacks.
+ */
+struct nrf_gpio_backend_if {
+ /* Will be called during nrf_gpio_init()->nrf_gpio_backend_init() */
+ void (*init)(void *st);
+ /* Will be called each time a GPIO output is changed */
+ void (*change_output)(void *st, unsigned int port, unsigned int n, bool value);
+ /* Will be called during nrf_gpio_backend_cleaup() */
+ void (*cleanup)(void *st);
+};
+
+/**
+ * Register a backend instance.
+ * Note this must be called before the gpio initialization or at the latest during the
+ * gpio configuration file parsing in nrf_gpio_load_config().
+ * The st pointer will be just passed back to all calls to the backend
+ */
+void nrf_gpio_backend_register(const struct nrf_gpio_backend_if *backend_callbacks, void *st);
 
 #ifdef __cplusplus
 }

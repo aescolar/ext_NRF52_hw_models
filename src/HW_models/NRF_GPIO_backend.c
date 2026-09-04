@@ -43,8 +43,26 @@ static struct {
 
 static FILE *output_file_ptr; /* File pointer for gpio_out_file_path */
 
+static struct backends_st_t {
+  const struct nrf_gpio_backend_if *c;
+  void *st;
+} *backends_st;
+
+static int n_backends;
+
 static void nrf_gpio_load_config(void);
 static void nrf_gpio_init_output_file(void);
+
+#define FOR_EACH_BACKEND_call(f, ...) \
+  do { \
+    if (backends_st) { \
+      for (int i = 0; i < n_backends; i++) { \
+        if (backends_st[i].c && backends_st[i].c->f) { \
+          backends_st[i].c->f(backends_st[i].st, ##__VA_ARGS__); \
+        } \
+      } \
+    } \
+  } while(0)
 
 /*
  * Initialize the GPIO backends
@@ -55,6 +73,8 @@ void nrf_gpio_backend_init(void)
 
   nrf_gpio_load_config();
   nrf_gpio_init_output_file();
+
+  FOR_EACH_BACKEND_call(init);
 }
 
 /*
@@ -66,10 +86,25 @@ static void nrf_gpio_backend_cleaup(void)
     fclose(output_file_ptr);
     output_file_ptr = NULL;
   }
+
+  if (backends_st) {
+    FOR_EACH_BACKEND_call(cleanup);
+    free(backends_st);
+    backends_st = NULL;
+  }
 }
 
 NSI_TASK(nrf_gpio_backend_cleaup, ON_EXIT_PRE, 100);
 
+void nrf_gpio_backend_register(const struct nrf_gpio_backend_if *backend_callbacks, void *st)
+{
+  int n = n_backends;
+
+  n_backends++;
+  backends_st = bs_realloc(backends_st, n_backends*sizeof(struct backends_st_t));
+  backends_st[n].c = backend_callbacks;
+  backends_st[n].st = st;
+}
 
 static void nrf_gpio_register_cmd_args(void) {
 
@@ -133,6 +168,8 @@ void nrf_gpio_backend_change_output(unsigned int port, unsigned int n, bool valu
     fprintf(output_file_ptr, "%"PRItime",%u,%u,%u\n",
         nsi_hws_get_time(), port, n, value);
   }
+
+  FOR_EACH_BACKEND_call(change_output, port, n, value);
 }
 
 /*
