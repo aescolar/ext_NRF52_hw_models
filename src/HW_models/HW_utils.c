@@ -26,8 +26,9 @@ void hwu_reverse_byte_order(const unsigned char *in_data, unsigned char *out_dat
 /*
  * Read a line from a file into a buffer (s), while
  * skipping duplicate spaces (unless they are quoted), comments (#...),
- * and empty lines.
+ * empty lines, and spaces before comments or end of lines.
  * The string will be null terminated (even if nothing is copied in).
+ * All isspace() characters (outside of quoted strings) will be normalized to be plain spaces.
  *
  * Return: The number of characters copied into s (apart from the termination 0 byte)
  */
@@ -39,29 +40,36 @@ int hwu_readline(char *s, int size, FILE *stream)
 
   while ((i == 0) && (c != EOF)) {
     while ((i < size - 1) && ((c = getc(stream)) != EOF) && c != '\n') {
+      if ((c == '#') && (!in_a_string)) {
+        bs_skipline(stream);
+        break;
+      }
       if (isspace(c) && (!in_a_string)) {
         if (was_a_space) {
           continue;
         }
         was_a_space = true;
+        s[i++] = ' ';
+        continue;
       } else {
         was_a_space = false;
       }
       if (c == '"') {
         in_a_string = !in_a_string;
       }
-      if (c == '#') {
-        bs_skipline(stream);
-        break;
-      }
       s[i++] = c;
     }
   }
-  s[i] = 0;
 
   if (i >= size - 1) {
     bs_trace_warning_line("Truncated line while reading from file after %i chars\n",
               size - 1);
   }
+
+  if ((i > 0) && was_a_space) { /* Remove a possible space at the end */
+    i--;
+  }
+  s[i] = 0;
+
   return i;
 }
