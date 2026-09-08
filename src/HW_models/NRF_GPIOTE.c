@@ -95,6 +95,14 @@ static void nrf_gpiote_init(void) {
 #endif
   for (int i = 0; i < NHW_GPIOTE_TOTAL_INST; i++) {
     gpiote_st[i].n_channels = n_ch[i];
+    for (int j = 0; j < NHW_GPIOTE_MAX_CHANNELS; j++) {
+      /* Invalid channel config values */
+      gpiote_st[i].gpiote_ch_status[j].port = UINT8_MAX;
+      gpiote_st[i].gpiote_ch_status[j].pin = UINT8_MAX;
+      gpiote_st[i].gpiote_ch_status[j].polarity = UINT8_MAX;
+      /* Except for marking it as disabled so we don't try to disconnect the GPIO from this invalid pin */
+      gpiote_st[i].gpiote_ch_status[j].mode = GPIOTE_CONFIG_MODE_Disabled;
+    }
 #if (NHW_HAS_DPPI)
     gpiote_st[i].dppi_map = dppi_map[i];
 #endif
@@ -373,8 +381,8 @@ void nrf_gpiote_regw_sideeffects_CONFIG(unsigned int inst, unsigned int ch_n) {
   unsigned int outinit = (NRF_GPIOTE_regs[inst].CONFIG[ch_n] & GPIOTE_CONFIG_OUTINIT_Msk)
                           >>GPIOTE_CONFIG_OUTINIT_Pos;
 
-  if ((port != sc->port) || (pin != sc->pin)
-      || (mode == GPIOTE_CONFIG_MODE_Disabled  && sc->mode != GPIOTE_CONFIG_MODE_Disabled)) {
+  if ((sc->mode != GPIOTE_CONFIG_MODE_Disabled)
+      && ((port != sc->port) || (pin != sc->pin) || (mode == GPIOTE_CONFIG_MODE_Disabled))) {
     /* Disconnect the old GPIO pin from the GPIOTE */
     nrf_gpio_peri_pin_control(sc->port, sc->pin, 0, 0, 0, NULL, NULL, -1);
   }
