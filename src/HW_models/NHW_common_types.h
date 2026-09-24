@@ -17,8 +17,8 @@ extern "C"{
 
 /* Type used to keep the mapping of a peripheral instance to its interrupt controller line and instance */
 struct nhw_irq_mapping {
-  unsigned int cntl_inst;
-  unsigned int int_nbr;
+  int cntl_inst;
+  int int_nbr;
 };
 
 /* Type used to keep the mapping of a peripheral instance to its DPPI instance */

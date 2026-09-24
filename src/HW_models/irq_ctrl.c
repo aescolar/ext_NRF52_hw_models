@@ -36,6 +36,7 @@
 #include <string.h>
 #include "NHW_common_types.h"
 #include "NHW_config.h"
+#include "HW_irq_router.h"
 #include "nsi_internal.h"
 #include "nsi_cpun_if.h"
 #include "bs_types.h"
@@ -347,8 +348,15 @@ static inline void hw_irq_ctrl_irq_raise_prefix(unsigned int inst, unsigned int 
  *
  * This is an API towards the HW models. Embedded SW may not call it.
  */
-void hw_irq_ctrl_set_irq(unsigned int inst, unsigned int irq)
+void hw_irq_ctrl_set_irq(int inst, int irq)
 {
+#if NHW_HAS_INTROUTER
+  if (inst < 0) {
+    hw_irq_router_set_irq(inst, irq);
+    return;
+  }
+#endif
+
   struct intctrl_status *this = &nhw_intctrl_st[inst];
 
   hw_irq_ctrl_irq_raise_prefix(inst, irq);
@@ -380,8 +388,15 @@ void hw_irq_ctrl_set_irq(unsigned int inst, unsigned int irq)
  *
  * This is an API towards the HW models. Embedded SW may not call it.
  */
-void hw_irq_ctrl_raise_level_irq_line(unsigned int inst, unsigned int irq)
+void hw_irq_ctrl_raise_level_irq_line(int inst, int irq)
 {
+#if NHW_HAS_INTROUTER
+  if (inst < 0) {
+    hw_irq_router_raise_level_irq_line(inst, irq);
+    return;
+  }
+#endif
+
   struct intctrl_status *this = &nhw_intctrl_st[inst];
 
   if ( irq >= NHW_INTCTRL_MAX_INTLINES ) {
@@ -405,8 +420,15 @@ void hw_irq_ctrl_raise_level_irq_line(unsigned int inst, unsigned int irq)
  *
  * This is an API towards the HW models. Embedded SW may not call it.
  */
-void hw_irq_ctrl_lower_level_irq_line(unsigned int inst, unsigned int irq)
+void hw_irq_ctrl_lower_level_irq_line(int inst, int irq)
 {
+#if NHW_HAS_INTROUTER
+  if (inst < 0) {
+    hw_irq_router_lower_level_irq_line(inst, irq);
+    return;
+  }
+#endif
+
   if ( irq >= NHW_INTCTRL_MAX_INTLINES ) {
     bs_trace_error_line_time("Phony interrupts cannot use this API\n");
   }
